@@ -25,9 +25,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // DEVELOPMENT MODE flag - set to false before production deployment
-  // TODO: Remove this when moving to production
-  const DEVELOPMENT_MODE = true;
+  // Production-ready authentication flow
 
   // Initialize auth state on app load
   useEffect(() => {
@@ -35,66 +33,39 @@ export const AuthProvider = ({ children }) => {
       try {
         console.log('Initializing authentication state...');
         
-        // Check for development mode override
-        if (DEVELOPMENT_MODE && localStorage.getItem('isAuthenticated') === 'true') {
-          console.log('DEVELOPMENT MODE: Using localStorage authentication');
-          
-          // Get role from localStorage
-          const userRole = localStorage.getItem('userRole') || 'buyer';
-          
-          // Create a mock user based on the role
-          const mockUser = {
-            id: '123456789',
-            name: `Development ${userRole.charAt(0).toUpperCase() + userRole.slice(1)}`,
-            email: `${userRole}@example.com`,
-            role: userRole,
-            avatar: 'default-avatar.jpg',
-            isVerified: true,
-            createdAt: new Date().toISOString()
-          };
-          
-          // Add role-specific properties
-          if (userRole === 'buyer') {
-            mockUser.buyerInfo = { totalOrders: 5, totalSpent: 1500 };
-            mockUser.wishlist = [];
-          } else if (userRole === 'seller') {
-            mockUser.sellerInfo = { isApproved: true, businessName: 'Dev Business', commission: 10 };
-          }
-          
-          console.log('Using development mode user:', mockUser);
-          setUser(mockUser);
-          setIsAuthenticated(true);
-          return; // Skip API calls in development mode
-        }
-        
+        // Check if user has a token
         if (checkAuth()) {
-          console.log('User is authenticated according to local storage');
+          console.log('User has token, verifying with backend...');
           
           // Get stored user data first for immediate UI update
           const storedUser = getStoredUser();
           if (storedUser) {
-            console.log('Using stored user data:', storedUser.role);
             setUser(storedUser);
             setIsAuthenticated(true);
           }
           
           // Then fetch fresh user data from API
           try {
-            console.log('Fetching fresh user data from API...');
-            const { data } = await getCurrentUser();
-            console.log('Fresh user data received:', data?.role);
-            setUser(data);
-            setIsAuthenticated(true);
+            const response = await getCurrentUser();
+            if (response && response.data) {
+              setUser(response.data);
+              setIsAuthenticated(true);
+            }
           } catch (apiError) {
-            console.error('Failed to fetch fresh user data:', apiError);
+            console.error('Failed to verify user authentication:', apiError);
             // If API call fails, clear auth data
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('user');
+            localStorage.removeItem('isAuthenticated');
+            localStorage.removeItem('userRole');
             setIsAuthenticated(false);
             setUser(null);
-            throw apiError;
           }
+        } else {
+          // No token found, user is not authenticated
+          setIsAuthenticated(false);
+          setUser(null);
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -116,55 +87,37 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setLoading(true);
     try {
-      console.log('Attempting login with credentials:', { email });
+      // Validate inputs
+      if (!email || !password) {
+        throw new Error('Email and password are required');
+      }
       
-      // Create proper credentials object
+      // Create credentials object
       const loginCredentials = { email, password };
       
       // Call the login API
       const response = await loginApi(loginCredentials);
       
-      console.log('Login response:', response);
-      
-      if (response && response.user) {
-        // Set user and auth state with real data from API
-        setUser(response.user);
-        setIsAuthenticated(true);
-        
-        // Store auth data in localStorage if not already done by the API service
-        if (!localStorage.getItem('token') && response.token) {
-          localStorage.setItem('token', response.token);
-        }
-        
-        if (!localStorage.getItem('user') && response.user) {
-          localStorage.setItem('user', JSON.stringify(response.user));
-        }
-        
-        if (!localStorage.getItem('isAuthenticated')) {
-          localStorage.setItem('isAuthenticated', 'true');
-        }
-        
-        if (!localStorage.getItem('userRole') && response.user?.role) {
-          localStorage.setItem('userRole', response.user.role);
-        }
-        
-        toast.success('Logged in successfully');
-        return response;
+      // Verify response has necessary data
+      if (!response || !response.success) {
+        throw new Error('Invalid response from server');
       }
       
-      // Normal authentication flow
+      // Set user and auth state
       setUser(response.user);
       setIsAuthenticated(true);
       
-      // Store role in localStorage for development mode
-      if (response.user && response.user.role) {
-        localStorage.setItem('userRole', response.user.role);
-      }
+      // Store auth data in localStorage
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('refreshToken', response.refreshToken || '');
+      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('isAuthenticated', 'true');
+      localStorage.setItem('userRole', response.user.role);
       
       toast.success('Logged in successfully');
       return response;
     } catch (error) {
-      console.error('Login error details:', error);
+      console.error('Login error:', error);
       
       // Handle login errors
       setIsAuthenticated(false);
@@ -196,6 +149,11 @@ export const AuthProvider = ({ children }) => {
   const signup = async (name, email, password, role = 'buyer') => {
     setLoading(true);
     try {
+      // Validate inputs
+      if (!name || !email || !password) {
+        throw new Error('Name, email, and password are required');
+      }
+      
       // Validate role
       const validRole = ['buyer', 'seller', 'admin', 'super_admin'].includes(role) ? role : 'buyer';
       

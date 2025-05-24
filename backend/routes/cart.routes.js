@@ -6,7 +6,8 @@ const {
   removeCartItem,
   clearCart,
   applyCoupon,
-  removeCoupon
+  removeCoupon,
+  syncCart
 } = require('../controllers/cart.controller');
 
 const router = express.Router();
@@ -29,5 +30,8 @@ router.route('/apply-coupon')
 
 router.route('/remove-coupon')
   .delete(protect, removeCoupon);
+
+router.route('/sync')
+  .post(protect, syncCart);
 
 module.exports = router;

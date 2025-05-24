@@ -4,6 +4,186 @@ const Product = require('../models/product.model');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 
+// @desc    Sync local cart with server cart
+// @route   POST /api/cart/sync
+// @access  Private
+exports.syncCart = asyncHandler(async (req, res, next) => {
+  const { items } = req.body;
+  
+  if (!items || !Array.isArray(items)) {
+    return next(new ErrorResponse('Invalid cart data. Items must be an array.', 400));
+  }
+  
+  console.log(`Syncing cart for user ${req.user.id} with ${items.length} items`);
+  
+  try {
+    // Find user's cart
+    let cart = await Cart.findOne({ user: req.user.id });
+    
+    // If cart doesn't exist, create one
+    if (!cart) {
+      cart = await Cart.create({
+        user: req.user.id,
+        items: []
+      });
+    }
+    
+    // Track invalid products for user feedback
+    const invalidProducts = [];
+    const validProducts = [];
+    
+    // Process each item from the local cart
+    for (const item of items) {
+      const productId = item._id || item.id;
+      const productName = item.name;
+      const quantity = item.quantity || 1;
+      
+      // Skip items without ID or name
+      if (!productId && !productName) {
+        console.log('Skipping item without ID or name');
+        invalidProducts.push({
+          name: 'Unknown Product',
+          reason: 'Missing product ID and name'
+        });
+        continue;
+      }
+      
+      // Check if product exists
+      let product;
+      let validObjectId = false;
+      
+      // Validate ObjectId format
+      if (productId) {
+        validObjectId = mongoose.Types.ObjectId.isValid(productId);
+        if (!validObjectId) {
+          console.log(`Invalid ObjectId format: ${productId}`);
+        }
+      }
+      
+      // Try to find the product by ID first if it's a valid ObjectId
+      if (productId && validObjectId) {
+        product = await Product.findById(productId);
+      }
+      
+      // If product not found by ID, try to find by name
+      if (!product && productName) {
+        console.log(`Product not found with id ${productId}, trying to find by name: ${productName}`);
+        product = await Product.findOne({ name: new RegExp('^' + productName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i') });
+        
+        // If exact match fails, try partial match
+        if (!product) {
+          product = await Product.findOne({ name: new RegExp(productName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i') });
+        }
+      }
+      
+      // If product still not found
+      if (!product) {
+        console.log(`Product not found with id ${productId} or name ${productName}`);
+        
+        // In development mode, create a test product
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Development mode: Creating test product for cart sync');
+          try {
+            product = await Product.create({
+              name: productName || `Luxury Item ${Math.floor(Math.random() * 1000)}`,
+              description: 'Automatically created test product',
+              price: item.price || 999.99,
+              stock: 100,
+              status: 'active',
+              seller: req.user.id,
+              category: '6831ee54319db2b4b0e9295e' // Default category ID
+            });
+            console.log(`Created mock product with ID: ${product._id}`);
+          } catch (createErr) {
+            console.error('Error creating mock product:', createErr);
+            invalidProducts.push({
+              name: productName || 'Unknown Product',
+              id: productId,
+              reason: 'Failed to create mock product: ' + createErr.message
+            });
+            continue;
+          }
+        } else {
+          console.log('Skipping item with non-existent product');
+          invalidProducts.push({
+            name: productName || 'Unknown Product',
+            id: productId,
+            reason: 'Product does not exist in database'
+          });
+          continue;
+        }
+      }
+      
+      // At this point we have a valid product
+      validProducts.push({
+        id: product._id,
+        name: product.name
+      });
+      
+      // Check if product is already in cart
+      const existingItemIndex = cart.items.findIndex(cartItem => 
+        cartItem.product && cartItem.product.toString() === product._id.toString()
+      );
+      
+      // Get current price
+      const price = product.onSale && product.salePrice > 0 
+        ? product.salePrice 
+        : product.price;
+      
+      if (existingItemIndex > -1) {
+        // Update quantity if product already in cart
+        cart.items[existingItemIndex].quantity += quantity;
+        console.log(`Updated quantity for existing item: ${product.name}`);
+      } else {
+        // Add new item to cart
+        cart.items.push({
+          product: product._id,
+          quantity,
+          price,
+          name: product.name,
+          image: product.images && product.images.length > 0 && product.images[0].url 
+            ? product.images[0].url 
+            : '/assets/images/product-placeholder.jpg',
+          seller: product.seller,
+          // Store original ID for reference if it wasn't a valid ObjectId
+          mockId: !validObjectId ? productId : undefined
+        });
+        console.log(`Added new item to cart: ${product.name}`);
+      }
+    }
+    
+    // Save updated cart
+    await cart.save();
+    
+    // Populate cart items with product details
+    await cart.populate({
+      path: 'items.product',
+      select: 'name price salePrice onSale images stock status seller'
+    });
+    
+    await cart.populate({
+      path: 'items.seller',
+      select: 'name sellerInfo.businessName'
+    });
+    
+    // Prepare response with information about invalid products
+    const responseMessage = invalidProducts.length > 0 
+      ? `Cart synced with ${validProducts.length} valid products. ${invalidProducts.length} invalid products were removed.` 
+      : 'Cart synced successfully';
+    
+    res.status(200).json({
+      success: true,
+      message: responseMessage,
+      data: cart,
+      validProducts,
+      invalidProducts: invalidProducts.length > 0 ? invalidProducts : undefined
+    });
+  } catch (err) {
+    console.error('Error syncing cart:', err);
+    return next(new ErrorResponse(`Error syncing cart: ${err.message}`, 500));
+  }
+});
+
 // @desc    Get user cart
 // @route   GET /api/cart
 // @access  Private

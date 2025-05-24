@@ -52,6 +52,35 @@ exports.getProduct = asyncHandler(async (req, res, next) => {
 // @route   POST /api/products
 // @access  Private (Seller, Admin)
 exports.createProduct = asyncHandler(async (req, res, next) => {
+  console.log('Creating product with data:', JSON.stringify(req.body, null, 2));
+  
+  // Validate required fields
+  const requiredFields = ['name', 'description', 'price', 'category', 'stock'];
+  const missingFields = requiredFields.filter(field => !req.body[field]);
+  
+  if (missingFields.length > 0) {
+    return next(
+      new ErrorResponse(
+        `Missing required fields: ${missingFields.join(', ')}`,
+        400
+      )
+    );
+  }
+  
+  // Validate price and stock are numbers
+  if (isNaN(parseFloat(req.body.price))) {
+    return next(new ErrorResponse('Price must be a valid number', 400));
+  }
+  
+  if (isNaN(parseInt(req.body.stock))) {
+    return next(new ErrorResponse('Stock must be a valid number', 400));
+  }
+  
+  // Validate category is a valid ObjectId
+  if (!mongoose.Types.ObjectId.isValid(req.body.category)) {
+    return next(new ErrorResponse('Invalid category ID format', 400));
+  }
+  
   // Add user to req.body
   req.body.seller = req.user.id;
 
@@ -67,33 +96,91 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
 
   // Handle image uploads
   const uploadedImages = [];
-  if (req.body.images && req.body.images.length > 0) {
-    for (const image of req.body.images) {
-      const result = await cloudinary.uploader.upload(image, {
-        folder: 'products',
-        transformation: [
-          { width: 1000, height: 1000, crop: 'limit' },
-          { quality: 'auto:good' }
-        ]
-      });
+  if (req.files && req.files.images) {
+    // Handle multipart form data uploads
+    const files = Array.isArray(req.files.images) ? req.files.images : [req.files.images];
+    
+    for (const file of files) {
+      try {
+        const result = await cloudinary.uploader.upload(file.tempFilePath, {
+          folder: 'products',
+          transformation: [
+            { width: 1000, height: 1000, crop: 'limit' },
+            { quality: 'auto:good' }
+          ]
+        });
 
-      uploadedImages.push({
-        public_id: result.public_id,
-        url: result.secure_url
-      });
+        uploadedImages.push({
+          public_id: result.public_id,
+          url: result.secure_url
+        });
+      } catch (error) {
+        console.error('Error uploading image to cloudinary:', error);
+      }
+    }
+  } else if (req.body.images && req.body.images.length > 0) {
+    // Handle base64 image uploads
+    try {
+      for (const image of req.body.images) {
+        // Skip if not a base64 string
+        if (!image || (typeof image === 'string' && !image.startsWith('data:'))) continue;
+        
+        const result = await cloudinary.uploader.upload(image, {
+          folder: 'products',
+          transformation: [
+            { width: 1000, height: 1000, crop: 'limit' },
+            { quality: 'auto:good' }
+          ]
+        });
+
+        uploadedImages.push({
+          public_id: result.public_id,
+          url: result.secure_url
+        });
+      }
+    } catch (error) {
+      console.error('Error uploading base64 image to cloudinary:', error);
     }
   }
 
-  // Add images to req.body
-  req.body.images = uploadedImages;
+  // Add images to req.body or use placeholder if no images
+  if (uploadedImages.length > 0) {
+    req.body.images = uploadedImages;
+  } else {
+    // Add placeholder image if no images were uploaded
+    req.body.images = [{
+      public_id: 'products/placeholder',
+      url: '/assets/images/product-placeholder.jpg'
+    }];
+  }
 
-  // Create product
-  const product = await Product.create(req.body);
+  try {
+    // Create product
+    const product = await Product.create(req.body);
+    
+    console.log(`Product created successfully with ID: ${product._id}`);
 
-  res.status(201).json({
-    success: true,
-    data: product
-  });
+    res.status(201).json({
+      success: true,
+      data: product
+    });
+  } catch (error) {
+    console.error('Error creating product:', error);
+    
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return next(new ErrorResponse(messages.join(', '), 400));
+    }
+    
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue)[0];
+      return next(new ErrorResponse(`Duplicate field value: ${field}`, 400));
+    }
+    
+    return next(new ErrorResponse(`Failed to create product: ${error.message}`, 500));
+  }
 });
 
 // @desc    Update product

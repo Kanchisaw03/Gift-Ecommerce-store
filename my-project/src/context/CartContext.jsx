@@ -31,9 +31,7 @@ export const CartProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // DEVELOPMENT MODE flag - set to false before production deployment
-  // TODO: Remove this when moving to production
-  const DEVELOPMENT_MODE = true;
+  // Production-ready cart management
 
   // Fetch cart from API when user logs in
   useEffect(() => {
@@ -41,44 +39,47 @@ export const CartProvider = ({ children }) => {
       if (isAuthenticated) {
         setLoading(true);
         try {
-          // In development mode, handle API failures gracefully
-          if (DEVELOPMENT_MODE) {
-            try {
-              const response = await getCart();
-              if (response.data && response.data.items) {
-                setCartItems(response.data.items);
-                // Clear local storage cart as we're now using the server cart
-                localStorage.removeItem("cart");
-              }
-            } catch (err) {
-              console.log('Development mode: Using local cart data');
-              // In development mode, continue with local cart if API fails
-              const localCart = localStorage.getItem("cart");
-              if (localCart) {
-                setCartItems(JSON.parse(localCart));
-              } else {
-                // Initialize with empty cart
-                setCartItems([]);
-                localStorage.setItem("cart", JSON.stringify([]));
-              }
-            }
+          const response = await getCart();
+          if (response && response.success && response.data) {
+            setCartItems(response.data.items || []);
+            // Clear local storage cart as we're now using the server cart
+            localStorage.removeItem("cart");
           } else {
-            // Production mode - normal flow
-            const response = await getCart();
-            if (response.data && response.data.items) {
-              setCartItems(response.data.items);
-              // Clear local storage cart as we're now using the server cart
-              localStorage.removeItem("cart");
-            }
+            // Initialize with empty cart if response is not as expected
+            setCartItems([]);
           }
         } catch (err) {
           console.error("Error fetching cart:", err);
           setError("Failed to load your cart. Please try again.");
-          if (!DEVELOPMENT_MODE) {
-            toast.error("Failed to fetch cart");
+          toast.error("Failed to fetch cart");
+          
+          // Fallback to local cart if available
+          const localCart = localStorage.getItem("cart");
+          if (localCart) {
+            try {
+              setCartItems(JSON.parse(localCart));
+            } catch (parseErr) {
+              setCartItems([]);
+              localStorage.setItem("cart", JSON.stringify([]));
+            }
+          } else {
+            // Initialize with empty cart
+            setCartItems([]);
+            localStorage.setItem("cart", JSON.stringify([]));
           }
         } finally {
           setLoading(false);
+        }
+      } else {
+        // For non-authenticated users, use local storage
+        const localCart = localStorage.getItem("cart");
+        if (localCart) {
+          try {
+            setCartItems(JSON.parse(localCart));
+          } catch (parseErr) {
+            setCartItems([]);
+            localStorage.setItem("cart", JSON.stringify([]));
+          }
         }
       }
     };
@@ -93,43 +94,78 @@ export const CartProvider = ({ children }) => {
       if (isAuthenticated && user && cartItems.length > 0 && localStorage.getItem("cart")) {
         setLoading(true);
         try {
-          // In development mode, handle potential API failures gracefully
-          if (DEVELOPMENT_MODE) {
+          console.log('Syncing local cart to server:', cartItems);
+          
+          // Ensure cart items have all necessary properties for sync
+          const formattedCartItems = cartItems.map(item => ({
+            id: item._id || item.id,
+            _id: item._id || item.id,
+            name: item.name || 'Unknown Product',
+            price: parseFloat(item.price) || 0,
+            quantity: parseInt(item.quantity) || 1,
+            image: item.image || item.images?.[0]?.url || '/assets/images/product-placeholder.jpg',
+            // Include any other properties that might be useful for product lookup
+            category: item.category,
+            seller: item.seller,
+            // Add any additional identifiers that might help with product matching
+            sku: item.sku,
+            brand: item.brand,
+            description: item.description
+          }));
+          
+          console.log('Formatted cart items for sync:', formattedCartItems);
+          
+          // Sync local cart to server
+          const syncResponse = await syncCartApi(formattedCartItems);
+          
+          if (syncResponse && syncResponse.success) {
+            // Check if there were any invalid products that couldn't be synced
+            if (syncResponse.invalidProducts && syncResponse.invalidProducts.length > 0) {
+              console.log('Some products could not be synced:', syncResponse.invalidProducts);
+              
+              // Show warning to user about invalid products
+              toast.warning(
+                `Some items in your cart were removed because they no longer exist: ${syncResponse.invalidProducts
+                  .map(p => p.name)
+                  .join(', ')}`
+              );
+              
+              // Clean up local cart by removing invalid products
+              const validProductIds = syncResponse.validProducts.map(p => p.id);
+              const cleanedCartItems = cartItems.filter(item => {
+                const itemId = item._id || item.id;
+                return validProductIds.includes(itemId);
+              });
+              
+              // Update local storage with cleaned cart
+              localStorage.setItem("cart", JSON.stringify(cleanedCartItems));
+            }
+            
+            // After successful sync, fetch the updated cart from server
             try {
-              await syncCartApi(cartItems);
-            } catch (syncErr) {
-              console.log('Development mode: Using local cart instead of syncing to server');
-              // Continue with local cart in development mode
-              localStorage.setItem("cart", JSON.stringify(cartItems));
-              return;
+              const response = await getCart();
+              if (response && response.success && response.data) {
+                setCartItems(response.data.items || []);
+                // Clear local storage cart as we're now using the server cart
+                localStorage.removeItem("cart");
+                toast.success(syncResponse.message || "Your cart has been synced");
+              }
+            } catch (fetchErr) {
+              console.error("Error fetching cart after sync:", fetchErr);
+              // Keep using the local cart if fetch fails after sync
+              toast.warning("Cart synced but couldn't refresh. Some items may be outdated.");
             }
           } else {
-            await syncCartApi(cartItems);
-          }
-          
-          // After successful sync, fetch the updated cart from server
-          try {
-            const response = await getCart();
-            if (response.data && response.data.items) {
-              setCartItems(response.data.items);
-              // Clear local storage cart as we're now using the server cart
-              localStorage.removeItem("cart");
-              toast.success("Your cart has been synced");
-            }
-          } catch (fetchErr) {
-            if (DEVELOPMENT_MODE) {
-              console.log('Development mode: Using local cart after sync');
-              // Continue with local cart in development mode
-              return;
-            } else {
-              throw fetchErr;
-            }
+            // If sync response is not successful, keep using local cart
+            console.error("Cart sync returned unsuccessful response", syncResponse);
+            toast.error(syncResponse?.message || "Failed to sync your cart");
           }
         } catch (err) {
           console.error("Error syncing cart:", err);
-          if (!DEVELOPMENT_MODE) {
-            toast.error("Failed to sync your cart");
-          }
+          toast.error(err?.response?.data?.message || "Failed to sync your cart");
+          
+          // Keep the local cart in localStorage if sync fails
+          localStorage.setItem("cart", JSON.stringify(cartItems));
         } finally {
           setLoading(false);
         }
@@ -147,6 +183,17 @@ export const CartProvider = ({ children }) => {
   }, [cartItems, isAuthenticated]);
 
   const addToCart = async (product, quantity = 1) => {
+    // Validate inputs
+    if (!product || !product._id && !product.id) {
+      toast.error("Invalid product");
+      return;
+    }
+    
+    if (quantity <= 0) {
+      toast.error("Quantity must be greater than zero");
+      return;
+    }
+    
     if (isAuthenticated) {
       // For logged-in users, use the API
       setLoading(true);
@@ -155,81 +202,143 @@ export const CartProvider = ({ children }) => {
           productId: product._id || product.id,
           quantity
         });
-        if (response.data && response.data.items) {
-          setCartItems(response.data.items);
+        
+        if (response && response.success && response.data) {
+          setCartItems(response.data.items || []);
           toast.success("Item added to cart");
+        } else {
+          throw new Error("Failed to add item to cart");
         }
       } catch (err) {
         console.error("Error adding to cart:", err);
-        toast.error("Failed to add item to cart");
+        const errorMessage = err.response?.data?.message || err.message || "Failed to add item to cart";
+        toast.error(errorMessage);
       } finally {
         setLoading(false);
       }
     } else {
       // For non-logged-in users, use local state
-      setCartItems((prev) => {
-        const productId = product._id || product.id;
-        const exists = prev.find((item) => (item._id || item.id) === productId);
+      try {
+        setCartItems((prev) => {
+          const productId = product._id || product.id;
+          const exists = prev.find((item) => (item._id || item.id) === productId);
+          
+          if (exists) {
+            return prev.map((item) =>
+              (item._id || item.id) === productId
+                ? { ...item, quantity: item.quantity + quantity }
+                : item
+            );
+          } else {
+            return [...prev, { ...product, quantity }];
+          }
+        });
         
-        if (exists) {
-          return prev.map((item) =>
-            (item._id || item.id) === productId
-              ? { ...item, quantity: item.quantity + quantity }
-              : item
-          );
-        } else {
-          return [...prev, { ...product, quantity }];
-        }
-      });
-      toast.success("Item added to cart");
+        // Save to localStorage
+        setTimeout(() => {
+          localStorage.setItem("cart", JSON.stringify(cartItems));
+        }, 0);
+        
+        toast.success("Item added to cart");
+      } catch (err) {
+        console.error("Error adding to local cart:", err);
+        toast.error("Failed to add item to cart");
+      }
     }
   };
 
   const updateCartItem = async (itemId, quantity) => {
+    // Validate inputs
+    if (!itemId) {
+      toast.error("Invalid item ID");
+      return;
+    }
+    
+    if (quantity <= 0) {
+      // If quantity is 0 or negative, remove the item instead
+      return removeFromCart(itemId);
+    }
+    
     if (isAuthenticated) {
       // For logged-in users, use the API
       setLoading(true);
       try {
         const response = await updateCartItemApi(itemId, { quantity });
-        if (response.data && response.data.items) {
-          setCartItems(response.data.items);
+        if (response && response.success && response.data) {
+          setCartItems(response.data.items || []);
+          toast.success("Cart updated");
+        } else {
+          throw new Error("Failed to update cart");
         }
       } catch (err) {
         console.error("Error updating cart item:", err);
-        toast.error("Failed to update cart item");
+        const errorMessage = err.response?.data?.message || err.message || "Failed to update cart item";
+        toast.error(errorMessage);
       } finally {
         setLoading(false);
       }
     } else {
       // For non-logged-in users, use local state
-      setCartItems((prev) =>
-        prev.map((item) =>
-          (item._id || item.id) === itemId ? { ...item, quantity } : item
-        )
-      );
+      try {
+        setCartItems((prev) =>
+          prev.map((item) =>
+            (item._id || item.id) === itemId ? { ...item, quantity } : item
+          )
+        );
+        
+        // Save to localStorage
+        setTimeout(() => {
+          localStorage.setItem("cart", JSON.stringify(cartItems));
+        }, 0);
+        
+        toast.success("Cart updated");
+      } catch (err) {
+        console.error("Error updating local cart:", err);
+        toast.error("Failed to update cart");
+      }
     }
   };
 
   const removeFromCart = async (itemId) => {
+    // Validate input
+    if (!itemId) {
+      toast.error("Invalid item ID");
+      return;
+    }
+    
     if (isAuthenticated) {
       // For logged-in users, use the API
       setLoading(true);
       try {
         const response = await removeFromCartApi(itemId);
-        if (response.data && response.data.items) {
-          setCartItems(response.data.items);
+        if (response && response.success && response.data) {
+          setCartItems(response.data.items || []);
           toast.success("Item removed from cart");
+        } else {
+          throw new Error("Failed to remove item from cart");
         }
       } catch (err) {
         console.error("Error removing from cart:", err);
-        toast.error("Failed to remove item from cart");
+        const errorMessage = err.response?.data?.message || err.message || "Failed to remove item from cart";
+        toast.error(errorMessage);
       } finally {
         setLoading(false);
       }
     } else {
       // For non-logged-in users, use local state
-      setCartItems((prev) => prev.filter((item) => (item._id || item.id) !== itemId));
-      toast.success("Item removed from cart");
+      try {
+        setCartItems((prev) => prev.filter((item) => (item._id || item.id) !== itemId));
+        
+        // Save to localStorage
+        setTimeout(() => {
+          localStorage.setItem("cart", JSON.stringify(cartItems));
+        }, 0);
+        
+        toast.success("Item removed from cart");
+      } catch (err) {
+        console.error("Error removing from local cart:", err);
+        toast.error("Failed to remove item from cart");
+      }
     }
   };
 
@@ -238,20 +347,30 @@ export const CartProvider = ({ children }) => {
       // For logged-in users, use the API
       setLoading(true);
       try {
-        await clearCartApi();
-        setCartItems([]);
-        toast.success("Cart cleared");
+        const response = await clearCartApi();
+        if (response && response.success) {
+          setCartItems([]);
+          toast.success("Cart cleared");
+        } else {
+          throw new Error("Failed to clear cart");
+        }
       } catch (err) {
         console.error("Error clearing cart:", err);
-        toast.error("Failed to clear cart");
+        const errorMessage = err.response?.data?.message || err.message || "Failed to clear cart";
+        toast.error(errorMessage);
       } finally {
         setLoading(false);
       }
     } else {
       // For non-logged-in users, use local state
-      setCartItems([]);
-      localStorage.removeItem("cart");
-      toast.success("Cart cleared");
+      try {
+        setCartItems([]);
+        localStorage.removeItem("cart");
+        toast.success("Cart cleared");
+      } catch (err) {
+        console.error("Error clearing local cart:", err);
+        toast.error("Failed to clear cart");
+      }
     }
   };
 
