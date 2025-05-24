@@ -1,0 +1,371 @@
+import React, { createContext, useState, useEffect } from 'react';
+import { 
+  login as loginApi, 
+  logout as logoutApi, 
+  register as registerApi,
+  getCurrentUser, 
+  getStoredUser,
+  isAuthenticated as checkAuth
+} from '../services/api/authService';
+import { toast } from 'react-toastify';
+
+// Define user roles
+export const ROLES = {
+  BUYER: 'buyer',
+  SELLER: 'seller',
+  ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin' // Changed to match backend model
+};
+
+// Create context
+const AuthContext = createContext();
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // DEVELOPMENT MODE flag - set to false before production deployment
+  // TODO: Remove this when moving to production
+  const DEVELOPMENT_MODE = true;
+
+  // Initialize auth state on app load
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        console.log('Initializing authentication state...');
+        
+        // Check for development mode override
+        if (DEVELOPMENT_MODE && localStorage.getItem('isAuthenticated') === 'true') {
+          console.log('DEVELOPMENT MODE: Using localStorage authentication');
+          
+          // Get role from localStorage
+          const userRole = localStorage.getItem('userRole') || 'buyer';
+          
+          // Create a mock user based on the role
+          const mockUser = {
+            id: '123456789',
+            name: `Development ${userRole.charAt(0).toUpperCase() + userRole.slice(1)}`,
+            email: `${userRole}@example.com`,
+            role: userRole,
+            avatar: 'default-avatar.jpg',
+            isVerified: true,
+            createdAt: new Date().toISOString()
+          };
+          
+          // Add role-specific properties
+          if (userRole === 'buyer') {
+            mockUser.buyerInfo = { totalOrders: 5, totalSpent: 1500 };
+            mockUser.wishlist = [];
+          } else if (userRole === 'seller') {
+            mockUser.sellerInfo = { isApproved: true, businessName: 'Dev Business', commission: 10 };
+          }
+          
+          console.log('Using development mode user:', mockUser);
+          setUser(mockUser);
+          setIsAuthenticated(true);
+          return; // Skip API calls in development mode
+        }
+        
+        if (checkAuth()) {
+          console.log('User is authenticated according to local storage');
+          
+          // Get stored user data first for immediate UI update
+          const storedUser = getStoredUser();
+          if (storedUser) {
+            console.log('Using stored user data:', storedUser.role);
+            setUser(storedUser);
+            setIsAuthenticated(true);
+          }
+          
+          // Then fetch fresh user data from API
+          try {
+            console.log('Fetching fresh user data from API...');
+            const { data } = await getCurrentUser();
+            console.log('Fresh user data received:', data?.role);
+            setUser(data);
+            setIsAuthenticated(true);
+          } catch (apiError) {
+            console.error('Failed to fetch fresh user data:', apiError);
+            // If API call fails, clear auth data
+            localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            setIsAuthenticated(false);
+            setUser(null);
+            throw apiError;
+          }
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        // Clear any invalid auth data
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+  }, []);
+
+  // Login function
+  const login = async (email, password) => {
+    setLoading(true);
+    try {
+      console.log('Attempting login with credentials:', { email });
+      
+      // Create proper credentials object
+      const loginCredentials = { email, password };
+      
+      // Call the login API
+      const response = await loginApi(loginCredentials);
+      
+      console.log('Login response:', response);
+      
+      if (response && response.user) {
+        // Set user and auth state with real data from API
+        setUser(response.user);
+        setIsAuthenticated(true);
+        
+        // Store auth data in localStorage if not already done by the API service
+        if (!localStorage.getItem('token') && response.token) {
+          localStorage.setItem('token', response.token);
+        }
+        
+        if (!localStorage.getItem('user') && response.user) {
+          localStorage.setItem('user', JSON.stringify(response.user));
+        }
+        
+        if (!localStorage.getItem('isAuthenticated')) {
+          localStorage.setItem('isAuthenticated', 'true');
+        }
+        
+        if (!localStorage.getItem('userRole') && response.user?.role) {
+          localStorage.setItem('userRole', response.user.role);
+        }
+        
+        toast.success('Logged in successfully');
+        return response;
+      }
+      
+      // Normal authentication flow
+      setUser(response.user);
+      setIsAuthenticated(true);
+      
+      // Store role in localStorage for development mode
+      if (response.user && response.user.role) {
+        localStorage.setItem('userRole', response.user.role);
+      }
+      
+      toast.success('Logged in successfully');
+      return response;
+    } catch (error) {
+      console.error('Login error details:', error);
+      
+      // Handle login errors
+      setIsAuthenticated(false);
+      setUser(null);
+      
+      // Clear any potentially invalid auth data
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('userRole');
+      
+      // Show appropriate error message
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          error.message || 
+                          'Login failed. Please check your credentials and try again.';
+      
+      toast.error(errorMessage);
+      
+      // Throw the error to be handled by the component
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Signup function
+  const signup = async (name, email, password, role = 'buyer') => {
+    setLoading(true);
+    try {
+      // Validate role
+      const validRole = ['buyer', 'seller', 'admin', 'super_admin'].includes(role) ? role : 'buyer';
+      
+      // Create user data for registration
+      const userData = { name, email, password, role: validRole };
+      console.log('Attempting to register user with role:', validRole);
+      
+      // Call the registration API
+      const response = await registerApi(userData);
+      
+      console.log('Registration response:', response);
+      
+      // Handle successful registration
+      if (response && response.success !== false) {
+        // If we have user data in the response
+        if (response.user) {
+          // Set user and auth state with data from API
+          setUser(response.user);
+          setIsAuthenticated(true);
+          
+          // Store auth data in localStorage if not already done by the API service
+          if (response.token) {
+            localStorage.setItem('token', response.token);
+          }
+          
+          if (response.user) {
+            localStorage.setItem('user', JSON.stringify(response.user));
+          }
+          
+          localStorage.setItem('isAuthenticated', 'true');
+          
+          if (response.user?.role) {
+            localStorage.setItem('userRole', response.user.role);
+          }
+          
+          toast.success('Account created successfully');
+        } else {
+          // If we don't have user data but registration was successful
+          // (some APIs might require email verification before returning user data)
+          toast.success('Registration successful! Please check your email for verification.');
+        }
+        
+        return response;
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('Signup error details:', error);
+      
+      // Handle registration errors
+      setIsAuthenticated(false);
+      setUser(null);
+      
+      // Clear any potentially invalid auth data
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('userRole');
+      
+      // Show appropriate error message
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          error.message || 
+                          'Registration failed. Please try again.';
+      
+      toast.error(errorMessage);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Logout function
+  const logout = async () => {
+    setLoading(true);
+    try {
+      await logoutApi();
+      setUser(null);
+      setIsAuthenticated(false);
+      
+      // Clear local storage
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('userRole');
+      
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to logout');
+      
+      // Force logout on client side even if API fails
+      setUser(null);
+      setIsAuthenticated(false);
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('userRole');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update user data in context after profile update
+  const updateUserData = (updatedUserData) => {
+    setUser(prevUser => ({
+      ...prevUser,
+      ...updatedUserData
+    }));
+    
+    // Update stored user data
+    const storedUser = getStoredUser();
+    if (storedUser) {
+      localStorage.setItem('user', JSON.stringify({
+        ...storedUser,
+        ...updatedUserData
+      }));
+    }
+  };
+
+  // Check if user has a specific role
+  const hasRole = (role) => {
+    if (!user) return false;
+    return user.role === role;
+  };
+
+  // Check if user has any of the specified roles
+  const hasAnyRole = (roles) => {
+    // In development mode, always return true if authentication is bypassed
+    if (DEVELOPMENT_MODE && localStorage.getItem('isAuthenticated') === 'true') {
+      const userRole = localStorage.getItem('userRole');
+      return roles.includes(userRole);
+    }
+    
+    // Normal role check
+    return user && roles.includes(user.role);
+  };
+
+  const isBuyer = () => hasRole(ROLES.BUYER);
+  const isSeller = () => hasRole(ROLES.SELLER);
+  const isAdmin = () => hasRole(ROLES.ADMIN);
+  const isSuperAdmin = () => hasRole(ROLES.SUPER_ADMIN);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        isAuthenticated,
+        login,
+        logout,
+        signup,
+        updateUserData,
+        // Role-based access control
+        hasRole,
+        hasAnyRole,
+        isBuyer,
+        isSeller,
+        isAdmin,
+        isSuperAdmin
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// Note: useAuth hook is now defined in src/hooks/useAuth.js
+
+export default AuthContext;

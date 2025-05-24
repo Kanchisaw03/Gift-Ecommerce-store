@@ -1,0 +1,42 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Luxury E-Commerce API",
+    "version": "1.0.0",
+    "description": "API documentation for the Luxury E-Commerce platform",
+    "contact": {
+      "name": "API Support",
+      "email": "support@luxuryecommerce.com"
+    },
+    "license": {
+      "name": "Proprietary",
+      "url": "https://luxuryecommerce.com/license"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.luxuryecommerce.com",
+      "description": "Production server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {},
+  "tags": []
+}

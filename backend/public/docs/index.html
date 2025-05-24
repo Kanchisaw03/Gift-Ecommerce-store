@@ -1,0 +1,49 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Luxury E-Commerce API</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui.css" />
+  <style>
+    body {
+      margin: 0;
+      background-color: #121212;
+      color: #ffffff;
+    }
+    .swagger-ui {
+      filter: invert(88%) hue-rotate(180deg);
+    }
+    .swagger-ui .topbar {
+      background-color: #121212;
+    }
+    .topbar-wrapper img {
+      content: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgNTAiPjx0ZXh0IHg9IjEwIiB5PSIzMCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjI0IiBmaWxsPSIjRDRBRjM3Ij5MdXh1cnkgRS1Db21tZXJjZTwvdGV4dD48L3N2Zz4=');
+    }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui-bundle.js"></script>
+  <script>
+    window.onload = function() {
+      window.ui = SwaggerUIBundle({
+        url: "./swagger.json",
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIBundle.SwaggerUIStandalonePreset
+        ],
+        layout: "BaseLayout",
+        syntaxHighlight: {
+          activated: true,
+          theme: "monokai"
+        },
+        theme: "dark"
+      });
+    };
+  </script>
+</body>
+</html>
