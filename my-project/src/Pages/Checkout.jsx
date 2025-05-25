@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { useCart } from "../hooks/useCart";
 import { useAuth } from "../hooks/useAuth";
 import { createOrder } from "../services/api/orderService";
+import { processPayment } from "../services/api/paymentService";
+import { toast } from "react-toastify";
 import { luxuryTheme } from "../styles/luxuryTheme";
 
 export default function Checkout() {
@@ -109,6 +111,24 @@ export default function Checkout() {
       setIsSubmitting(true);
       
       try {
+        // Process payment first
+        let paymentResult;
+        if (formData.paymentMethod === 'credit') {
+          const paymentData = {
+            cardNumber: formData.cardNumber.replace(/\s/g, ''),
+            cardName: formData.cardName,
+            expiryDate: formData.expiryDate,
+            cvv: formData.cvv,
+            amount: orderTotal
+          };
+          
+          paymentResult = await processPayment(paymentData);
+          
+          if (!paymentResult || !paymentResult.success) {
+            throw new Error(paymentResult?.message || 'Payment processing failed');
+          }
+        }
+        
         // Prepare order data
         const orderData = {
           shippingAddress: {
@@ -121,6 +141,7 @@ export default function Checkout() {
             country: formData.country,
           },
           paymentMethod: formData.paymentMethod,
+          paymentId: paymentResult?.paymentId,
           items: cartItems.map(item => ({
             productId: item._id || item.id,
             quantity: item.quantity,
@@ -132,34 +153,21 @@ export default function Checkout() {
           total: orderTotal
         };
         
-        // DEVELOPMENT MODE: Check if we should use mock API
-        const MOCK_API = true; // Set to false when backend is ready
+        // Create order in database
+        const orderResponse = await createOrder(orderData);
         
-        if (MOCK_API || !isAuthenticated) {
-          // Simulate API call for development or guest checkout
-          setTimeout(() => {
-            // Generate random order ID
-            const randomOrderId = "GN" + Math.floor(100000 + Math.random() * 900000);
-            setOrderId(randomOrderId);
-            
-            // Clear cart and set order complete
-            clearCart();
-            setOrderComplete(true);
-            setIsSubmitting(false);
-          }, 2000);
-        } else {
-          // Use real API for production with authenticated users
-          const response = await createOrder(orderData);
-          setOrderId(response.orderId);
-          clearCart();
-          setOrderComplete(true);
+        if (!orderResponse || !orderResponse.data) {
+          throw new Error('Failed to create order');
         }
+        
+        // Set order ID and complete the checkout process
+        setOrderId(orderResponse.data.orderId || orderResponse.data._id);
+        setOrderComplete(true);
+        clearCart();
+        toast.success('Order placed successfully!');
       } catch (error) {
-        console.error('Error creating order:', error);
-        // Show error message
-        setErrors({
-          submit: error.message || 'Failed to create order. Please try again.'
-        });
+        console.error("Error creating order:", error);
+        toast.error(error.message || "There was an error processing your order. Please try again.");
       } finally {
         setIsSubmitting(false);
       }

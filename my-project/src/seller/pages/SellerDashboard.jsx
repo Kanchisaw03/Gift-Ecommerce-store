@@ -1,68 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
+import { useSeller } from '../../hooks/useSeller';
 import DashboardLayout from '../../shared/components/DashboardLayout';
 import StatsCard from '../../shared/components/StatsCard';
 import { luxuryTheme } from '../../styles/luxuryTheme';
-
-// Mock data for seller dashboard
-const mockStats = {
-  totalProducts: 24,
-  totalOrders: 156,
-  totalRevenue: 12850,
-  pendingOrders: 8,
-  averageRating: 4.7
-};
-
-// Mock data for recent orders
-const mockRecentOrders = [
-  { id: 1, customer: 'John Doe', date: '2025-05-18', total: 350, status: 'delivered' },
-  { id: 2, customer: 'Jane Smith', date: '2025-05-19', total: 210, status: 'processing' },
-  { id: 3, customer: 'Robert Johnson', date: '2025-05-19', total: 175, status: 'shipped' },
-  { id: 4, customer: 'Emily Davis', date: '2025-05-20', total: 420, status: 'processing' },
-];
-
-// Mock data for best-selling products
-const mockBestSellers = [
-  { id: 1, name: 'Luxury Watch', sold: 28, revenue: 5600 },
-  { id: 2, name: 'Gold Bracelet', sold: 24, revenue: 3600 },
-  { id: 3, name: 'Diamond Earrings', sold: 19, revenue: 2850 },
-  { id: 4, name: 'Silk Scarf', sold: 15, revenue: 1800 },
-];
+import { toast } from 'react-toastify';
 
 const SellerDashboard = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState(mockStats);
-  const [recentOrders, setRecentOrders] = useState(mockRecentOrders);
-  const [bestSellers, setBestSellers] = useState(mockBestSellers);
+  const { 
+    dashboardData, 
+    loading: contextLoading, 
+    error, 
+    fetchDashboardData,
+    products,
+    orders
+  } = useSeller();
+  
   const [isLoading, setIsLoading] = useState(true);
 
-  // Simulate data fetching
+  // Fetch dashboard data from backend
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        // In a real app, you would fetch data from your API here
-        // const response = await fetch('/api/seller/dashboard');
-        // const data = await response.json();
-        
-        // For now, we'll use mock data
-        setStats(mockStats);
-        setRecentOrders(mockRecentOrders);
-        setBestSellers(mockBestSellers);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    // Simulate API delay
-    const timer = setTimeout(() => {
-      fetchDashboardData();
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
+    // Only fetch data if user is authenticated and is a seller
+    if (user?.role === 'seller') {
+      const loadDashboardData = async () => {
+        setIsLoading(true);
+        try {
+          await fetchDashboardData();
+        } catch (err) {
+          console.error('Error fetching dashboard data:', err);
+          // Don't show toast error for approval_pending errors
+          if (!err.message || !err.message.includes('not approved')) {
+            toast.error('Failed to load dashboard data');
+          }
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      loadDashboardData();
+    }
+    // Remove fetchDashboardData from dependencies to prevent infinite loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Get status color
   const getStatusColor = (status) => {
@@ -89,6 +70,26 @@ const SellerDashboard = () => {
     }).format(amount);
   };
 
+  // Calculate stats from real data
+  const stats = {
+    totalProducts: dashboardData?.totalProducts || 0,
+    totalOrders: dashboardData?.totalOrders || 0,
+    totalRevenue: dashboardData?.totalRevenue || 0,
+    pendingOrders: dashboardData?.pendingOrders || 0,
+    averageRating: dashboardData?.averageRating || 0
+  };
+
+  // Get recent orders from real data
+  const recentOrders = orders?.slice(0, 5) || [];
+
+  // Get best sellers from real data
+  const bestSellers = dashboardData?.bestSellers || [];
+
+  const loading = isLoading || contextLoading;
+
+  // Check if seller approval is pending
+  const isApprovalPending = error === 'approval_pending';
+
   return (
     <DashboardLayout activeTab="dashboard">
       {/* Welcome message */}
@@ -99,16 +100,55 @@ const SellerDashboard = () => {
         >
           Welcome back, {user?.name}
         </h1>
-        <p 
-          className="text-gray-400"
-          style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-        >
-          Here's what's happening with your store today.
-        </p>
+        {isApprovalPending ? (
+          <p 
+            className="text-amber-400"
+            style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
+          >
+            Your seller account is pending approval. You'll have access to the full dashboard once approved.
+          </p>
+        ) : (
+          <p 
+            className="text-gray-400"
+            style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
+          >
+            Here's what's happening with your store today.
+          </p>
+        )}
       </div>
 
       {/* Stats cards */}
-      {isLoading ? (
+      {isApprovalPending ? (
+        <div className="bg-neutral-800 border border-gold/20 p-8 rounded-sm mb-8">
+          <div className="flex flex-col items-center justify-center text-center space-y-6">
+            <div className="w-20 h-20 rounded-full bg-amber-400/20 flex items-center justify-center text-amber-400">
+              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-white">Seller Account Pending Approval</h2>
+            <p className="text-gray-400 max-w-lg">
+              Your seller application is currently under review. Once approved, you'll have access to all seller features including product management, orders, analytics, and more.
+            </p>
+            <div className="flex flex-col space-y-4 w-full max-w-md">
+              <div className="bg-neutral-700/30 p-4 rounded-sm">
+                <h3 className="text-white font-medium mb-2">What happens next?</h3>
+                <ol className="text-gray-400 list-decimal list-inside space-y-2">
+                  <li>Our admin team reviews your application</li>
+                  <li>You'll receive an email notification when approved</li>
+                  <li>Full dashboard access will be granted immediately</li>
+                </ol>
+              </div>
+              <div className="bg-neutral-700/30 p-4 rounded-sm">
+                <h3 className="text-white font-medium mb-2">While you wait</h3>
+                <p className="text-gray-400">
+                  You can update your profile information and prepare product details for when your account is approved.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {[...Array(4)].map((_, index) => (
             <div 
@@ -137,8 +177,8 @@ const SellerDashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
             }
-            trend="up"
-            trendValue="+12%"
+            trend={dashboardData?.ordersTrend?.direction || "none"}
+            trendValue={dashboardData?.ordersTrend?.value || "0%"}
             trendLabel="vs last month"
           />
           
@@ -150,8 +190,8 @@ const SellerDashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             }
-            trend="up"
-            trendValue="+8.5%"
+            trend={dashboardData?.revenueTrend?.direction || "none"}
+            trendValue={dashboardData?.revenueTrend?.value || "0%"}
             trendLabel="vs last month"
           />
           
@@ -168,7 +208,8 @@ const SellerDashboard = () => {
       )}
 
       {/* Main content */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {!isApprovalPending && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent orders */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -187,13 +228,13 @@ const SellerDashboard = () => {
           </div>
           
           <div className="p-6">
-            {isLoading ? (
+            {loading ? (
               <div className="space-y-4">
                 {[...Array(4)].map((_, index) => (
                   <div key={index} className="animate-pulse h-16 bg-neutral-700/50 rounded-sm"></div>
                 ))}
               </div>
-            ) : (
+            ) : recentOrders.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gold/10">
                   <thead>
@@ -232,52 +273,44 @@ const SellerDashboard = () => {
                   </thead>
                   <tbody className="divide-y divide-gold/10">
                     {recentOrders.map((order) => (
-                      <tr key={order.id} className="hover:bg-black/20">
-                        <td 
-                          className="px-4 py-4 whitespace-nowrap text-sm text-gold"
-                          style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-                        >
-                          #{order.id}
+                      <tr key={order._id || order.id} className="hover:bg-neutral-700/30 transition-colors">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                          #{order._id?.substring(0, 8) || order.id}
                         </td>
-                        <td 
-                          className="px-4 py-4 whitespace-nowrap text-sm text-white"
-                          style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-                        >
-                          {order.customer}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-white">
+                          {order.customer?.name || order.customer}
                         </td>
-                        <td 
-                          className="px-4 py-4 whitespace-nowrap text-sm text-gray-300"
-                          style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-                        >
-                          {order.date}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                          {new Date(order.createdAt || order.date).toLocaleDateString()}
                         </td>
-                        <td 
-                          className="px-4 py-4 whitespace-nowrap text-sm text-white"
-                          style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-                        >
-                          {formatCurrency(order.total)}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-white">
+                          {formatCurrency(order.totalAmount || order.total)}
                         </td>
-                        <td 
-                          className={`px-4 py-4 whitespace-nowrap text-sm capitalize ${getStatusColor(order.status)}`}
-                          style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-                        >
-                          {order.status}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm">
+                          <span className={`${getStatusColor(order.status)} capitalize`}>
+                            {order.status}
+                          </span>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                <p>No recent orders found</p>
+              </div>
             )}
-            
-            <div className="mt-4 text-center">
-              <button 
-                className="text-gold hover:text-gold-light text-sm"
-                style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-              >
-                View All Orders
-              </button>
-            </div>
+          </div>
+          
+          <div className="p-4 border-t border-gold/20 text-center">
+            <a 
+              href="/seller/orders" 
+              className="text-gold hover:text-gold/80 text-sm font-medium"
+              style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
+            >
+              View all orders →
+            </a>
           </div>
         </motion.div>
         
@@ -299,13 +332,13 @@ const SellerDashboard = () => {
           </div>
           
           <div className="p-6">
-            {isLoading ? (
+            {loading ? (
               <div className="space-y-4">
                 {[...Array(4)].map((_, index) => (
                   <div key={index} className="animate-pulse h-16 bg-neutral-700/50 rounded-sm"></div>
                 ))}
               </div>
-            ) : (
+            ) : bestSellers.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gold/10">
                   <thead>
@@ -332,23 +365,14 @@ const SellerDashboard = () => {
                   </thead>
                   <tbody className="divide-y divide-gold/10">
                     {bestSellers.map((product) => (
-                      <tr key={product.id} className="hover:bg-black/20">
-                        <td 
-                          className="px-4 py-4 whitespace-nowrap text-sm text-white"
-                          style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-                        >
+                      <tr key={product._id || product.id} className="hover:bg-neutral-700/30 transition-colors">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-white">
                           {product.name}
                         </td>
-                        <td 
-                          className="px-4 py-4 whitespace-nowrap text-sm text-gray-300"
-                          style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-                        >
-                          {product.sold}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                          {product.unitsSold || product.sold}
                         </td>
-                        <td 
-                          className="px-4 py-4 whitespace-nowrap text-sm text-gold"
-                          style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-                        >
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-white">
                           {formatCurrency(product.revenue)}
                         </td>
                       </tr>
@@ -356,90 +380,85 @@ const SellerDashboard = () => {
                   </tbody>
                 </table>
               </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                <p>No best-selling products found</p>
+              </div>
             )}
-            
-            <div className="mt-4 text-center">
-              <button 
-                className="text-gold hover:text-gold-light text-sm"
-                style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-              >
-                View All Products
-              </button>
-            </div>
+          </div>
+          
+          <div className="p-4 border-t border-gold/20 text-center">
+            <a 
+              href="/seller/products" 
+              className="text-gold hover:text-gold/80 text-sm font-medium"
+              style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
+            >
+              View all products →
+            </a>
           </div>
         </motion.div>
       </div>
-
-      {/* Quick actions */}
-      <motion.div
+      )}
+      
+      {/* Recent activity */}
+      {!isApprovalPending && (
+        <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4, duration: 0.5 }}
-        className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6"
+        className="mt-8 bg-neutral-800 border border-gold/20 rounded-sm overflow-hidden"
+        style={{ boxShadow: luxuryTheme.shadows.sm }}
       >
-        <button 
-          className="p-6 bg-neutral-800 border border-gold/20 hover:border-gold/50 hover:bg-black/20 transition-all duration-300 flex flex-col items-center justify-center text-center"
-          style={{ boxShadow: luxuryTheme.shadows.sm }}
-        >
-          <svg className="w-8 h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          <h3 
-            className="text-white font-medium mb-1"
+        <div className="p-6 border-b border-gold/20">
+          <h2 
+            className="text-lg font-semibold text-white"
             style={{ fontFamily: luxuryTheme.typography.fontFamily.heading }}
           >
-            Add New Product
-          </h3>
-          <p 
-            className="text-sm text-gray-400"
-            style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-          >
-            Create a new product listing
-          </p>
-        </button>
+            Recent Activity
+          </h2>
+        </div>
         
-        <button 
-          className="p-6 bg-neutral-800 border border-gold/20 hover:border-gold/50 hover:bg-black/20 transition-all duration-300 flex flex-col items-center justify-center text-center"
-          style={{ boxShadow: luxuryTheme.shadows.sm }}
-        >
-          <svg className="w-8 h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-          </svg>
-          <h3 
-            className="text-white font-medium mb-1"
-            style={{ fontFamily: luxuryTheme.typography.fontFamily.heading }}
-          >
-            Create Promotion
-          </h3>
-          <p 
-            className="text-sm text-gray-400"
-            style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-          >
-            Set up discounts and offers
-          </p>
-        </button>
-        
-        <button 
-          className="p-6 bg-neutral-800 border border-gold/20 hover:border-gold/50 hover:bg-black/20 transition-all duration-300 flex flex-col items-center justify-center text-center"
-          style={{ boxShadow: luxuryTheme.shadows.sm }}
-        >
-          <svg className="w-8 h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <h3 
-            className="text-white font-medium mb-1"
-            style={{ fontFamily: luxuryTheme.typography.fontFamily.heading }}
-          >
-            View Reports
-          </h3>
-          <p 
-            className="text-sm text-gray-400"
-            style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-          >
-            Analyze sales and performance
-          </p>
-        </button>
+        <div className="p-6">
+          {loading ? (
+            <div className="space-y-4">
+              {[...Array(5)].map((_, index) => (
+                <div key={index} className="animate-pulse h-12 bg-neutral-700/50 rounded-sm"></div>
+              ))}
+            </div>
+          ) : dashboardData?.recentActivity?.length > 0 ? (
+            <ul className="space-y-4">
+              {dashboardData.recentActivity.map((activity, index) => (
+                <li key={index} className="flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold flex-shrink-0">
+                    {activity.type === 'order' ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
+                    ) : activity.type === 'product' ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-white text-sm">{activity.message}</p>
+                    <p className="text-gray-400 text-xs mt-1">{new Date(activity.timestamp).toLocaleString()}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-center py-8 text-gray-400">
+              <p>No recent activity found</p>
+            </div>
+          )}
+        </div>
       </motion.div>
+      )}
     </DashboardLayout>
   );
 };

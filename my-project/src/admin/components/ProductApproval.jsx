@@ -2,82 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import DataTable from '../../shared/components/DataTable';
 import { luxuryTheme } from '../../styles/luxuryTheme';
+import axiosInstance from '../../services/api/axiosConfig';
+import { toast } from 'react-toastify';
 
-// Mock data for pending products
-const mockPendingProducts = [
-  { 
-    id: 1, 
-    name: 'Luxury Watch', 
-    seller: 'Jane Smith', 
-    sellerEmail: 'jane@example.com',
-    category: 'Watches',
-    price: 1200, 
-    date: '2025-05-19', 
-    status: 'pending',
-    images: ['/assets/products/watch.jpg'],
-    description: 'Elegant luxury watch with gold accents and premium leather strap. Perfect for formal occasions.'
-  },
-  { 
-    id: 2, 
-    name: 'Gold Bracelet', 
-    seller: 'Emily Davis', 
-    sellerEmail: 'emily@example.com',
-    category: 'Jewelry',
-    price: 850, 
-    date: '2025-05-20', 
-    status: 'pending',
-    images: ['/assets/products/bracelet.jpg'],
-    description: 'Handcrafted gold bracelet with intricate detailing. Made from 18k gold with diamond accents.'
-  },
-  { 
-    id: 3, 
-    name: 'Diamond Earrings', 
-    seller: 'Jane Smith', 
-    sellerEmail: 'jane@example.com',
-    category: 'Jewelry',
-    price: 1500, 
-    date: '2025-05-20', 
-    status: 'pending',
-    images: ['/assets/products/earrings.jpg'],
-    description: 'Stunning diamond earrings with platinum setting. Each earring features a 1-carat diamond.'
-  },
-  { 
-    id: 4, 
-    name: 'Silk Scarf', 
-    seller: 'Emily Davis', 
-    sellerEmail: 'emily@example.com',
-    category: 'Accessories',
-    price: 120, 
-    date: '2025-05-20', 
-    status: 'pending',
-    images: ['/assets/products/scarf.jpg'],
-    description: 'Luxurious silk scarf with hand-painted design. Made from 100% mulberry silk.'
-  },
-  { 
-    id: 5, 
-    name: 'Leather Wallet', 
-    seller: 'David Wilson', 
-    sellerEmail: 'david@example.com',
-    category: 'Leather Goods',
-    price: 180, 
-    date: '2025-05-21', 
-    status: 'pending',
-    images: ['/assets/products/wallet.jpg'],
-    description: 'Premium leather wallet with multiple card slots and compartments. Made from full-grain Italian leather.'
-  },
-  { 
-    id: 6, 
-    name: 'Luxury Perfume', 
-    seller: 'Sarah Johnson', 
-    sellerEmail: 'sarah@example.com',
-    category: 'Fragrances',
-    price: 220, 
-    date: '2025-05-21', 
-    status: 'pending',
-    images: ['/assets/products/perfume.jpg'],
-    description: 'Exclusive luxury perfume with notes of jasmine, amber, and sandalwood. Long-lasting fragrance in a crystal bottle.'
-  }
-];
 
 const ProductApproval = () => {
   const [pendingProducts, setPendingProducts] = useState([]);
@@ -87,29 +14,31 @@ const ProductApproval = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
 
-  // Simulate data fetching
+  // Fetch pending products from API
   useEffect(() => {
     const fetchPendingProducts = async () => {
       try {
-        // In a real app, you would fetch data from your API here
-        // const response = await fetch('/api/admin/products/pending');
-        // const data = await response.json();
+        setIsLoading(true);
+        // Call the real API to get pending products
+        const response = await axiosInstance.get('/admin/products/pending');
         
-        // For now, we'll use mock data
-        setPendingProducts(mockPendingProducts);
+        if (response && response.data) {
+          setPendingProducts(response.data.data || response.data);
+        } else {
+          console.error('Unexpected API response format:', response);
+          setPendingProducts([]);
+          toast.error('Failed to load pending products');
+        }
       } catch (error) {
         console.error('Error fetching pending products:', error);
+        toast.error('Failed to load pending products. Please try again later.');
+        setPendingProducts([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    // Simulate API delay
-    const timer = setTimeout(() => {
-      fetchPendingProducts();
-    }, 1000);
-
-    return () => clearTimeout(timer);
+    fetchPendingProducts();
   }, []);
 
   // Format currency
@@ -130,20 +59,23 @@ const ProductApproval = () => {
   // Handle approve product
   const handleApproveProduct = async (productId) => {
     try {
-      // In a real app, you would call your API here
-      // await fetch(`/api/admin/products/${productId}/approve`, {
-      //   method: 'PATCH'
-      // });
+      // Call the real API to approve product
+      await axiosInstance.put(`/admin/products/${productId}/approve`, { status: 'approved' });
       
-      // For now, we'll just update the local state
-      setPendingProducts(pendingProducts.filter(p => p.id !== productId));
+      // Update local state
+      setPendingProducts(pendingProducts.filter(product => (product._id || product.id) !== productId));
       
       // Close modal if the approved product was being viewed
-      if (selectedProduct && selectedProduct.id === productId) {
+      if (selectedProduct && (selectedProduct._id || selectedProduct.id) === productId) {
         setIsDetailsModalOpen(false);
+        setSelectedProduct(null);
       }
+      
+      // Show success message
+      toast.success('Product approved successfully');
     } catch (error) {
       console.error('Error approving product:', error);
+      toast.error('Failed to approve product');
     }
   };
 
@@ -156,22 +88,30 @@ const ProductApproval = () => {
 
   // Handle reject product
   const handleRejectProduct = async () => {
+    if (!selectedProduct || !rejectionReason.trim()) return;
+    
     try {
-      // In a real app, you would call your API here
-      // await fetch(`/api/admin/products/${selectedProduct.id}/reject`, {
-      //   method: 'PATCH',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ reason: rejectionReason })
-      // });
+      // Call the real API to reject product
+      await axiosInstance.put(
+        `/admin/products/${selectedProduct._id || selectedProduct.id}/reject`, 
+        { reason: rejectionReason.trim() }
+      );
       
-      // For now, we'll just update the local state
-      setPendingProducts(pendingProducts.filter(p => p.id !== selectedProduct.id));
+      // Update local state
+      setPendingProducts(pendingProducts.filter(product => 
+        (product._id || product.id) !== (selectedProduct._id || selectedProduct.id)
+      ));
       
-      // Close modals
+      // Close modals and reset state
       setIsRejectionModalOpen(false);
-      setIsDetailsModalOpen(false);
+      setRejectionReason('');
+      setSelectedProduct(null);
+      
+      // Show success message
+      toast.success('Product rejected successfully');
     } catch (error) {
       console.error('Error rejecting product:', error);
+      toast.error('Failed to reject product');
     }
   };
 

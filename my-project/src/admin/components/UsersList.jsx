@@ -3,103 +3,9 @@ import { motion } from 'framer-motion';
 import DataTable from '../../shared/components/DataTable';
 import { ROLES } from '../../context/AuthContext';
 import { luxuryTheme } from '../../styles/luxuryTheme';
+import axiosInstance from '../../services/api/axiosConfig';
+import { toast } from 'react-toastify';
 
-// Mock data for users
-const mockUsers = [
-  { 
-    id: 1, 
-    name: 'John Doe', 
-    email: 'john@example.com', 
-    role: ROLES.BUYER, 
-    joinDate: '2025-04-10', 
-    status: 'active',
-    orders: 12
-  },
-  { 
-    id: 2, 
-    name: 'Jane Smith', 
-    email: 'jane@example.com', 
-    role: ROLES.SELLER, 
-    joinDate: '2025-03-15', 
-    status: 'active',
-    orders: 0,
-    products: 8
-  },
-  { 
-    id: 3, 
-    name: 'Robert Johnson', 
-    email: 'robert@example.com', 
-    role: ROLES.BUYER, 
-    joinDate: '2025-05-01', 
-    status: 'active',
-    orders: 3
-  },
-  { 
-    id: 4, 
-    name: 'Emily Davis', 
-    email: 'emily@example.com', 
-    role: ROLES.SELLER, 
-    joinDate: '2025-04-22', 
-    status: 'suspended',
-    orders: 0,
-    products: 5
-  },
-  { 
-    id: 5, 
-    name: 'Michael Brown', 
-    email: 'michael@example.com', 
-    role: ROLES.BUYER, 
-    joinDate: '2025-02-18', 
-    status: 'active',
-    orders: 7
-  },
-  { 
-    id: 6, 
-    name: 'Sarah Wilson', 
-    email: 'sarah@example.com', 
-    role: ROLES.ADMIN, 
-    joinDate: '2025-01-05', 
-    status: 'active',
-    orders: 0
-  },
-  { 
-    id: 7, 
-    name: 'David Miller', 
-    email: 'david@example.com', 
-    role: ROLES.BUYER, 
-    joinDate: '2025-03-30', 
-    status: 'active',
-    orders: 5
-  },
-  { 
-    id: 8, 
-    name: 'Jennifer Taylor', 
-    email: 'jennifer@example.com', 
-    role: ROLES.SELLER, 
-    joinDate: '2025-04-15', 
-    status: 'active',
-    orders: 0,
-    products: 12
-  },
-  { 
-    id: 9, 
-    name: 'James Anderson', 
-    email: 'james@example.com', 
-    role: ROLES.BUYER, 
-    joinDate: '2025-05-10', 
-    status: 'active',
-    orders: 1
-  },
-  { 
-    id: 10, 
-    name: 'Lisa Thomas', 
-    email: 'lisa@example.com', 
-    role: ROLES.BUYER, 
-    joinDate: '2025-04-05', 
-    status: 'suspended',
-    orders: 2
-  }
-];
 
 const UsersList = () => {
   const [users, setUsers] = useState([]);
@@ -108,29 +14,31 @@ const UsersList = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [activeRoleFilter, setActiveRoleFilter] = useState('all');
 
-  // Simulate data fetching
+  // Fetch users from API
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchUserData = async () => {
       try {
-        // In a real app, you would fetch data from your API here
-        // const response = await fetch('/api/admin/users');
-        // const data = await response.json();
+        setIsLoading(true);
+        // Call the real API to get all users
+        const response = await axiosInstance.get('/users');
         
-        // For now, we'll use mock data
-        setUsers(mockUsers);
+        if (response && response.data) {
+          setUsers(response.data.data || response.data);
+        } else {
+          console.error('Unexpected API response format:', response);
+          setUsers([]);
+          toast.error('Failed to load users data');
+        }
       } catch (error) {
         console.error('Error fetching users:', error);
+        toast.error('Failed to load users. Please try again later.');
+        setUsers([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    // Simulate API delay
-    const timer = setTimeout(() => {
-      fetchUsers();
-    }, 1000);
-
-    return () => clearTimeout(timer);
+    fetchUserData();
   }, []);
 
   // Filter users by role
@@ -149,44 +57,47 @@ const UsersList = () => {
     try {
       const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
       
-      // In a real app, you would call your API here
-      // await fetch(`/api/admin/users/${userId}/status`, {
-      //   method: 'PATCH',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ status: newStatus })
-      // });
+      // Call the real API to update user status
+      await axiosInstance.put(`/users/${userId}/status`, { status: newStatus });
       
-      // For now, we'll just update the local state
+      // Update local state
       setUsers(users.map(user => 
-        user.id === userId ? { ...user, status: newStatus } : user
+        (user._id || user.id) === userId ? { ...user, status: newStatus } : user
       ));
       
       // Update selected user if modal is open
-      if (selectedUser && selectedUser.id === userId) {
+      if (selectedUser && (selectedUser._id || selectedUser.id) === userId) {
         setSelectedUser({ ...selectedUser, status: newStatus });
       }
+      
+      // Show success message
+      toast.success(`User ${newStatus === 'active' ? 'activated' : 'suspended'} successfully`);
     } catch (error) {
-      console.error('Error updating user status:', error);
+      console.error('Error toggling user status:', error);
+      toast.error('Failed to update user status');
     }
   };
 
   // Handle delete user
   const handleDeleteUser = async (userId) => {
     try {
-      // In a real app, you would call your API here
-      // await fetch(`/api/admin/users/${userId}`, {
-      //   method: 'DELETE'
-      // });
+      // Call the real API to delete user
+      await axiosInstance.delete(`/users/${userId}`);
       
-      // For now, we'll just update the local state
-      setUsers(users.filter(user => user.id !== userId));
+      // Update local state
+      setUsers(users.filter(user => (user._id || user.id) !== userId));
       
       // Close modal if the deleted user was being viewed
-      if (selectedUser && selectedUser.id === userId) {
+      if (selectedUser && (selectedUser._id || selectedUser.id) === userId) {
         setIsDetailsModalOpen(false);
+        setSelectedUser(null);
       }
+      
+      // Show success message
+      toast.success('User deleted successfully');
     } catch (error) {
       console.error('Error deleting user:', error);
+      toast.error('Failed to delete user');
     }
   };
 

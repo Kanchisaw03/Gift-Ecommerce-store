@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import axiosInstance from '../../services/api/axiosConfig';
 import useApiForm from '../../hooks/useApiForm';
 import useApi from '../../hooks/useApi';
 import { createProduct, updateProduct, getProduct } from '../../services/api/productService';
@@ -9,10 +10,37 @@ import { getCategories } from '../../services/api/categoryService';
 const ProductForm = ({ isEdit = false }) => {
   const navigate = useNavigate();
   const { id } = useParams();
+  
+  // State for form data
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    price: '',
+    salePrice: '',
+    stock: '',
+    category: '',
+    tags: '',
+    weight: '',
+    dimensions: '',
+    material: '',
+    isOnSale: false,
+    isFeatured: false
+  });
+  
+  // State for form validation errors
+  const [formErrors, setFormErrors] = useState({});
+  
+  // State for loading status
+  const [submitting, setSubmitting] = useState(false);
+  
+  // State for categories
   const [categories, setCategories] = useState([]);
-  const [images, setImages] = useState([]);
+  
+  // State for image files
   const [imageFiles, setImageFiles] = useState([]);
-  const [imagePreview, setImagePreview] = useState([]);
+  
+  // State for image previews
+  const [imagePreviews, setImagePreviews] = useState([]);
   
   // API hooks for fetching data
   const categoriesApi = useApi(getCategories);
@@ -45,71 +73,126 @@ const ProductForm = ({ isEdit = false }) => {
     }
   };
   
-  // Initialize form with API integration
-  const {
-    formData,
-    errors,
-    loading,
-    handleChange,
-    handleSubmit,
-    setFieldValue,
-    setFormData,
-    resetForm
-  } = useApiForm({
-    apiCall: async (data) => {
+  // Update the initial form data state with additional fields
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      brand: '',
+      sku: '',
+      features: ''
+    }));
+  }, []);
+
+  // Handle form field changes
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  // Validate form data
+  const validateForm = () => {
+    const errors = {};
+    
+    // Required fields
+    if (!formData.name || formData.name.length < 3) {
+      errors.name = 'Name is required and must be at least 3 characters';
+    }
+    
+    if (!formData.description || formData.description.length < 20) {
+      errors.description = 'Description is required and must be at least 20 characters';
+    }
+    
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      errors.price = 'Price is required and must be greater than 0';
+    }
+    
+    if (!formData.stock || parseInt(formData.stock) < 0) {
+      errors.stock = 'Stock is required and cannot be negative';
+    }
+    
+    if (!formData.category) {
+      errors.category = 'Category is required';
+    }
+    
+    return errors;
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validate form
+    const validationErrors = validateForm();
+    setFormErrors(validationErrors);
+    
+    if (Object.keys(validationErrors).length > 0) {
+      toast.error('Please fix the errors in the form');
+      return;
+    }
+    
+    setSubmitting(true);
+    
+    try {
+      console.log('Starting product submission with data:', formData);
+      
       // Create FormData for file upload
-      const formDataObj = new FormData();
+      const productFormData = new FormData();
       
       // Add all form fields to FormData
-      Object.keys(data).forEach(key => {
-        if (key !== 'images') {
-          formDataObj.append(key, data[key]);
+      Object.keys(formData).forEach(key => {
+        // Convert boolean values to strings
+        if (typeof formData[key] === 'boolean') {
+          productFormData.append(key, formData[key].toString());
+        } else if (formData[key] !== '') { // Only add non-empty values
+          productFormData.append(key, formData[key]);
         }
       });
       
       // Add image files
-      if (imageFiles.length > 0) {
+      if (imageFiles && imageFiles.length > 0) {
+        console.log(`Adding ${imageFiles.length} image files to form data`);
         imageFiles.forEach(file => {
-          formDataObj.append('images', file);
+          productFormData.append('images', file);
         });
+      } else {
+        console.log('No image files to upload');
       }
       
-      // Call the appropriate API
-      if (isEdit && id) {
-        return updateProduct(id, formDataObj);
-      } else {
-        return createProduct(formDataObj);
+      // Log the FormData contents (for debugging)
+      for (let pair of productFormData.entries()) {
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
       }
-    },
-    initialData: {
-      name: '',
-      description: '',
-      price: '',
-      salePrice: '',
-      stock: '',
-      category: '',
-      brand: '',
-      sku: '',
-      weight: '',
-      dimensions: '',
-      material: '',
-      features: '',
-      isOnSale: false,
-      isFeatured: false
-    },
-    validationRules,
-    onSuccess: (response) => {
+
+      // Make direct API call with axios
+      let response;
+      if (isEdit && id) {
+        console.log(`Updating product with ID: ${id}`);
+        response = await axiosInstance.put(`/products/${id}`, productFormData);
+      } else {
+        console.log('Creating new product');
+        response = await axiosInstance.post('/products', productFormData);
+      }
+      
+      console.log('API response:', response.data);
+      
+      // Show success message
       toast.success(isEdit ? 'Product updated successfully' : 'Product created successfully');
       
-      // Navigate back to products list
+      // Navigate back to products list after a short delay
       setTimeout(() => {
         navigate('/seller/products');
       }, 1500);
-    },
-    onError: (error) => {
-      console.error('Product form error:', error);
+      
+    } catch (error) {
+      console.error('Error in product form submission:', error);
+      toast.error(error.response?.data?.message || 'Failed to save product');
+    } finally {
+      setSubmitting(false);
     }
-  });
+  };
   
   // Fetch categories on component mount
   useEffect(() => {
@@ -168,30 +251,46 @@ const ProductForm = ({ isEdit = false }) => {
     }
   }, [isEdit, id]);
   
-  // Handle image file selection
-  const handleImageChange = (e) => {
+  // Handle image upload
+  const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
+    console.log('Files selected:', files.map(f => f.name));
     
-    if (files.length > 0) {
-      setImageFiles(prev => [...prev, ...files]);
+    // Validate file types and sizes
+    const validFiles = files.filter(file => {
+      const isValidType = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type);
+      const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB max
       
-      // Create preview URLs
-      const newPreviews = files.map(file => URL.createObjectURL(file));
-      setImagePreview(prev => [...prev, ...newPreviews]);
-    }
+      if (!isValidType) {
+        toast.error(`Invalid file type: ${file.name}. Only JPEG, PNG, GIF, and WebP are allowed.`);
+      }
+      
+      if (!isValidSize) {
+        toast.error(`File too large: ${file.name}. Maximum size is 5MB.`);
+      }
+      
+      return isValidType && isValidSize;
+    });
+    
+    if (validFiles.length === 0) return;
+    
+    console.log('Valid files to upload:', validFiles.length);
+    
+    // Update state with valid files
+    setImageFiles(prevFiles => [...prevFiles, ...validFiles]);
+    
+    // Create preview URLs
+    const newPreviews = validFiles.map(file => URL.createObjectURL(file));
+    setImagePreviews(prevPreviews => [...prevPreviews, ...newPreviews]);
   };
   
   // Remove image from preview
   const removeImage = (index) => {
-    setImagePreview(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
     setImageFiles(prev => prev.filter((_, i) => i !== index));
   };
   
-  // Toggle checkbox fields
-  const handleCheckboxChange = (e) => {
-    const { name, checked } = e.target;
-    setFieldValue(name, checked);
-  };
+  // Toggle checkbox fields is now handled by the main handleChange function
   
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -217,13 +316,13 @@ const ProductForm = ({ isEdit = false }) => {
                 value={formData.name}
                 onChange={handleChange}
                 className={`w-full px-4 py-2 bg-gray-800 border ${
-                  errors.name ? 'border-red-500' : 'border-gray-700'
+                  formErrors.name ? 'border-red-500' : 'border-gray-700'
                 } rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-white`}
                 placeholder="Luxury Watch"
-                disabled={loading}
+                disabled={submitting}
               />
-              {errors.name && (
-                <p className="mt-1 text-sm text-red-500">{errors.name}</p>
+              {formErrors.name && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
               )}
             </div>
             
@@ -238,9 +337,9 @@ const ProductForm = ({ isEdit = false }) => {
                 value={formData.category}
                 onChange={handleChange}
                 className={`w-full px-4 py-2 bg-gray-800 border ${
-                  errors.category ? 'border-red-500' : 'border-gray-700'
+                  formErrors.category ? 'border-red-500' : 'border-gray-700'
                 } rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-white`}
-                disabled={loading}
+                disabled={submitting}
               >
                 <option value="">Select Category</option>
                 {categories.map(category => (
@@ -249,8 +348,8 @@ const ProductForm = ({ isEdit = false }) => {
                   </option>
                 ))}
               </select>
-              {errors.category && (
-                <p className="mt-1 text-sm text-red-500">{errors.category}</p>
+              {formErrors.category && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.category}</p>
               )}
             </div>
             
@@ -267,7 +366,7 @@ const ProductForm = ({ isEdit = false }) => {
                 onChange={handleChange}
                 className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-white"
                 placeholder="Brand Name"
-                disabled={loading}
+                disabled={submitting}
               />
             </div>
             
@@ -284,7 +383,7 @@ const ProductForm = ({ isEdit = false }) => {
                 onChange={handleChange}
                 className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-white"
                 placeholder="LUX-WATCH-001"
-                disabled={loading}
+                disabled={submitting}
               />
             </div>
           </div>
@@ -311,14 +410,14 @@ const ProductForm = ({ isEdit = false }) => {
                   step="0.01"
                   min="0"
                   className={`w-full pl-8 px-4 py-2 bg-gray-800 border ${
-                    errors.price ? 'border-red-500' : 'border-gray-700'
+                    formErrors.price ? 'border-red-500' : 'border-gray-700'
                   } rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-white`}
                   placeholder="0.00"
-                  disabled={loading}
+                  disabled={submitting}
                 />
               </div>
-              {errors.price && (
-                <p className="mt-1 text-sm text-red-500">{errors.price}</p>
+              {formErrors.price && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.price}</p>
               )}
             </div>
             
@@ -341,7 +440,7 @@ const ProductForm = ({ isEdit = false }) => {
                   min="0"
                   className="w-full pl-8 px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-white"
                   placeholder="0.00"
-                  disabled={loading}
+                  disabled={submitting}
                 />
               </div>
             </div>
@@ -359,13 +458,13 @@ const ProductForm = ({ isEdit = false }) => {
                 onChange={handleChange}
                 min="0"
                 className={`w-full px-4 py-2 bg-gray-800 border ${
-                  errors.stock ? 'border-red-500' : 'border-gray-700'
+                  formErrors.stock ? 'border-red-500' : 'border-gray-700'
                 } rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-white`}
                 placeholder="10"
-                disabled={loading}
+                disabled={submitting}
               />
-              {errors.stock && (
-                <p className="mt-1 text-sm text-red-500">{errors.stock}</p>
+              {formErrors.stock && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.stock}</p>
               )}
             </div>
             
@@ -376,9 +475,9 @@ const ProductForm = ({ isEdit = false }) => {
                   type="checkbox"
                   name="isOnSale"
                   checked={formData.isOnSale}
-                  onChange={handleCheckboxChange}
+                  onChange={handleChange}
                   className="form-checkbox text-gold-500 h-5 w-5 rounded focus:ring-gold-500"
-                  disabled={loading}
+                  disabled={submitting}
                 />
                 <span className="ml-2 text-gray-300">On Sale</span>
               </label>
@@ -388,9 +487,9 @@ const ProductForm = ({ isEdit = false }) => {
                   type="checkbox"
                   name="isFeatured"
                   checked={formData.isFeatured}
-                  onChange={handleCheckboxChange}
+                  onChange={handleChange}
                   className="form-checkbox text-gold-500 h-5 w-5 rounded focus:ring-gold-500"
-                  disabled={loading}
+                  disabled={submitting}
                 />
                 <span className="ml-2 text-gray-300">Featured</span>
               </label>
@@ -410,13 +509,13 @@ const ProductForm = ({ isEdit = false }) => {
             onChange={handleChange}
             rows="5"
             className={`w-full px-4 py-2 bg-gray-800 border ${
-              errors.description ? 'border-red-500' : 'border-gray-700'
+              formErrors.description ? 'border-red-500' : 'border-gray-700'
             } rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-white`}
             placeholder="Detailed product description..."
-            disabled={loading}
+            disabled={submitting}
           ></textarea>
-          {errors.description && (
-            <p className="mt-1 text-sm text-red-500">{errors.description}</p>
+          {formErrors.description && (
+            <p className="mt-1 text-sm text-red-500">{formErrors.description}</p>
           )}
         </div>
         
@@ -434,7 +533,7 @@ const ProductForm = ({ isEdit = false }) => {
               onChange={handleChange}
               className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-white"
               placeholder="e.g., 150g"
-              disabled={loading}
+              disabled={submitting}
             />
           </div>
           
@@ -450,7 +549,7 @@ const ProductForm = ({ isEdit = false }) => {
               onChange={handleChange}
               className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-white"
               placeholder="e.g., 10 x 5 x 2 cm"
-              disabled={loading}
+              disabled={submitting}
             />
           </div>
           
@@ -466,7 +565,7 @@ const ProductForm = ({ isEdit = false }) => {
               onChange={handleChange}
               className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-white"
               placeholder="e.g., Stainless Steel, Leather"
-              disabled={loading}
+              disabled={submitting}
             />
           </div>
           
@@ -482,7 +581,7 @@ const ProductForm = ({ isEdit = false }) => {
               onChange={handleChange}
               className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-white"
               placeholder="e.g., Waterproof, Scratch-resistant"
-              disabled={loading}
+              disabled={submitting}
             />
           </div>
         </div>
@@ -507,7 +606,7 @@ const ProductForm = ({ isEdit = false }) => {
                     type="button"
                     onClick={() => removeImage(index)}
                     className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    disabled={loading}
+                    disabled={submitting}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -544,9 +643,9 @@ const ProductForm = ({ isEdit = false }) => {
                 type="file"
                 multiple
                 accept="image/*"
-                onChange={handleImageChange}
+                onChange={handleImageUpload}
                 className="sr-only"
-                disabled={loading}
+                disabled={submitting}
               />
             </label>
           </div>
@@ -558,17 +657,17 @@ const ProductForm = ({ isEdit = false }) => {
             type="button"
             onClick={() => navigate('/seller/products')}
             className="px-6 py-2 border border-gray-600 rounded-md text-gray-300 hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
-            disabled={loading}
+            disabled={submitting}
           >
             Cancel
           </button>
           
           <button
             type="submit"
-            disabled={loading}
+            disabled={submitting}
             className="px-6 py-2 bg-gold-600 hover:bg-gold-700 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? (
+            {submitting ? (
               <span className="flex items-center">
                 <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

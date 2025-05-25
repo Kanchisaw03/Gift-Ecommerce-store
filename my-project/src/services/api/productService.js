@@ -92,9 +92,13 @@ export const getRelatedProducts = async (productId, limit = 4) => {
  */
 export const createProduct = async (productData) => {
   try {
+    console.log('Creating product with data:', JSON.stringify(productData, null, 2));
     const response = await axiosInstance.post('/products', productData);
+    console.log('Product creation response:', JSON.stringify(response.data, null, 2));
     return response.data;
   } catch (error) {
+    console.error('Error creating product:', error);
+    console.error('Error response:', error.response?.data);
     throw error.response?.data || { message: 'Failed to create product' };
   }
 };

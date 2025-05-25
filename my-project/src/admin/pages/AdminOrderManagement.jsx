@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { luxuryTheme } from '../../styles/luxuryTheme';
 import DashboardLayout from '../../shared/components/DashboardLayout';
+import { getAllOrders, updateOrderStatus } from '../../services/api/orderService';
+import { toast } from 'react-toastify';
 
 const AdminOrderManagement = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -11,149 +13,31 @@ const AdminOrderManagement = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Fetch orders data
+  // Fetch orders data from API
   useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchOrdersData = async () => {
       setIsLoading(true);
       try {
-        // In a real app, this would be an API call
-        // For now, we'll simulate with mock data
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // Call the real API to get all orders
+        const response = await getAllOrders();
         
-        // Mock orders data
-        const mockOrders = [
-          {
-            id: 'ORD-001',
-            customer: 'John Smith',
-            email: 'john@example.com',
-            date: '2025-05-01',
-            total: 1250.00,
-            status: 'completed',
-            paymentStatus: 'paid',
-            items: [
-              { id: 1, name: 'Luxury Watch', price: 1200.00, quantity: 1 },
-              { id: 2, name: 'Watch Box', price: 50.00, quantity: 1 }
-            ],
-            shipping: {
-              method: 'Express',
-              address: '123 Main St, New York, NY 10001',
-              tracking: 'USP123456789'
-            }
-          },
-          {
-            id: 'ORD-002',
-            customer: 'Emily Johnson',
-            email: 'emily@example.com',
-            date: '2025-05-05',
-            total: 850.00,
-            status: 'processing',
-            paymentStatus: 'paid',
-            items: [
-              { id: 3, name: 'Gold Bracelet', price: 850.00, quantity: 1 }
-            ],
-            shipping: {
-              method: 'Standard',
-              address: '456 Park Ave, Boston, MA 02108',
-              tracking: ''
-            }
-          },
-          {
-            id: 'ORD-003',
-            customer: 'Michael Williams',
-            email: 'michael@example.com',
-            date: '2025-05-10',
-            total: 3200.00,
-            status: 'shipped',
-            paymentStatus: 'paid',
-            items: [
-              { id: 4, name: 'Diamond Earrings', price: 1500.00, quantity: 1 },
-              { id: 5, name: 'Diamond Necklace', price: 1700.00, quantity: 1 }
-            ],
-            shipping: {
-              method: 'Express',
-              address: '789 Oak St, Chicago, IL 60007',
-              tracking: 'USP987654321'
-            }
-          },
-          {
-            id: 'ORD-004',
-            customer: 'Sophia Brown',
-            email: 'sophia@example.com',
-            date: '2025-05-15',
-            total: 120.00,
-            status: 'delivered',
-            paymentStatus: 'paid',
-            items: [
-              { id: 6, name: 'Silk Scarf', price: 120.00, quantity: 1 }
-            ],
-            shipping: {
-              method: 'Standard',
-              address: '101 Pine St, San Francisco, CA 94111',
-              tracking: 'USP456789123'
-            }
-          },
-          {
-            id: 'ORD-005',
-            customer: 'David Miller',
-            email: 'david@example.com',
-            date: '2025-05-18',
-            total: 180.00,
-            status: 'pending',
-            paymentStatus: 'awaiting',
-            items: [
-              { id: 7, name: 'Leather Wallet', price: 180.00, quantity: 1 }
-            ],
-            shipping: {
-              method: 'Standard',
-              address: '202 Maple Ave, Austin, TX 78701',
-              tracking: ''
-            }
-          },
-          {
-            id: 'ORD-006',
-            customer: 'Olivia Davis',
-            email: 'olivia@example.com',
-            date: '2025-05-20',
-            total: 2200.00,
-            status: 'processing',
-            paymentStatus: 'paid',
-            items: [
-              { id: 8, name: 'Designer Handbag', price: 2200.00, quantity: 1 }
-            ],
-            shipping: {
-              method: 'Express',
-              address: '303 Cedar St, Miami, FL 33101',
-              tracking: ''
-            }
-          },
-          {
-            id: 'ORD-007',
-            customer: 'James Wilson',
-            email: 'james@example.com',
-            date: '2025-05-22',
-            total: 320.00,
-            status: 'cancelled',
-            paymentStatus: 'refunded',
-            items: [
-              { id: 9, name: 'Crystal Wine Glasses (Set of 4)', price: 320.00, quantity: 1 }
-            ],
-            shipping: {
-              method: 'Standard',
-              address: '404 Birch Rd, Seattle, WA 98101',
-              tracking: ''
-            }
-          }
-        ];
-        
-        setOrders(mockOrders);
-        setIsLoading(false);
+        if (response && response.data) {
+          setOrders(response.data);
+        } else {
+          console.error('Unexpected API response format:', response);
+          setOrders([]);
+          toast.error('Failed to load orders data');
+        }
       } catch (error) {
         console.error('Error fetching orders:', error);
+        toast.error('Failed to load orders. Please try again later.');
+        setOrders([]);
+      } finally {
         setIsLoading(false);
       }
     };
-    
-    fetchOrders();
+
+    fetchOrdersData();
   }, []);
 
   const handleSearch = (e) => {
@@ -167,16 +51,13 @@ const AdminOrderManagement = () => {
 
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
     try {
-      // In a real app, this would be an API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Call the real API to update order status
+      await updateOrderStatus(orderId, { status: newStatus });
       
-      // Update orders list
+      // Update local state
       const updatedOrders = orders.map(order => {
-        if (order.id === orderId) {
-          return {
-            ...order,
-            status: newStatus
-          };
+        if ((order._id || order.id) === orderId) {
+          return { ...order, status: newStatus };
         }
         return order;
       });
@@ -184,14 +65,15 @@ const AdminOrderManagement = () => {
       setOrders(updatedOrders);
       
       // Update selected order if modal is open
-      if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder({
-          ...selectedOrder,
-          status: newStatus
-        });
+      if (selectedOrder && (selectedOrder._id || selectedOrder.id) === orderId) {
+        setSelectedOrder({ ...selectedOrder, status: newStatus });
       }
+      
+      // Show success message
+      toast.success(`Order status updated to ${newStatus}`);
     } catch (error) {
       console.error('Error updating order status:', error);
+      toast.error('Failed to update order status');
     }
   };
 

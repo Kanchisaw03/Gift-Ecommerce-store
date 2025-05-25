@@ -1,6 +1,20 @@
 import axiosInstance from './axiosConfig';
 
 /**
+ * Process payment
+ * @param {Object} paymentData - Payment data (cardNumber, cardName, expiryDate, cvv, amount)
+ * @returns {Promise} - Response from API with payment confirmation
+ */
+export const processPayment = async (paymentData) => {
+  try {
+    const response = await axiosInstance.post('/payments/process', paymentData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to process payment' };
+  }
+};
+
+/**
  * Create payment intent
  * @param {Object} paymentData - Payment data (orderId, amount)
  * @returns {Promise} - Response from API with client secret

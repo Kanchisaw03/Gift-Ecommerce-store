@@ -16,38 +16,28 @@ const advancedResults = (model, populate) => async (req, res, next) => {
   // Create operators ($gt, $gte, etc)
   queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
 
-  // Finding resource
-  query = model.find(JSON.parse(queryStr));
+  // Finding resource - parse query string once
+  const parsedQuery = JSON.parse(queryStr);
+  
+  // Initial query
+  let queryObj = parsedQuery;
 
-  // Handle search
+  // Handle search more efficiently
   if (req.query.search) {
     const searchRegex = new RegExp(req.query.search, 'i');
     
-    // Determine searchable fields based on model
-    let searchFields = [];
+    // Determine searchable fields based on model - use a map for faster lookup
+    const modelSearchFields = {
+      'Product': ['name', 'description', 'tags'],
+      'User': ['name', 'email'],
+      'Category': ['name', 'description'],
+      'Order': ['orderNumber'],
+      'Review': ['title', 'content'],
+      'AuditLog': ['description', 'action', 'resourceType']
+    };
     
-    switch (model.modelName) {
-      case 'Product':
-        searchFields = ['name', 'description', 'tags'];
-        break;
-      case 'User':
-        searchFields = ['name', 'email'];
-        break;
-      case 'Category':
-        searchFields = ['name', 'description'];
-        break;
-      case 'Order':
-        searchFields = ['orderNumber'];
-        break;
-      case 'Review':
-        searchFields = ['title', 'content'];
-        break;
-      case 'AuditLog':
-        searchFields = ['description', 'action', 'resourceType'];
-        break;
-      default:
-        searchFields = ['name']; // Default search field
-    }
+    // Get search fields or use default
+    const searchFields = modelSearchFields[model.modelName] || ['name'];
     
     // Create search query with OR conditions for each field
     const searchQuery = searchFields.map(field => ({
@@ -55,12 +45,20 @@ const advancedResults = (model, populate) => async (req, res, next) => {
     }));
     
     // Add search query to main query
-    query = model.find({
+    queryObj = {
       $and: [
-        JSON.parse(queryStr),
+        parsedQuery,
         { $or: searchQuery }
       ]
-    });
+    };
+  }
+  
+  // Start building the query
+  query = model.find(queryObj);
+  
+  // Use lean() for better performance when we don't need Mongoose documents
+  if (model.modelName === 'Product' && !req.query.populate) {
+    query = query.lean();
   }
 
   // Select Fields
@@ -77,14 +75,26 @@ const advancedResults = (model, populate) => async (req, res, next) => {
     query = query.sort('-createdAt');
   }
 
-  // Pagination
+  // Pagination - more efficient
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const startIndex = (page - 1) * limit;
-  const endIndex = page * limit;
-  const total = await model.countDocuments(JSON.parse(queryStr));
-
+  
+  // Apply pagination
   query = query.skip(startIndex).limit(limit);
+  
+  // Only count documents if pagination is actually being used
+  // This avoids unnecessary count operations for simple queries
+  let total = 0;
+  if (req.query.page || req.query.limit) {
+    // Use estimatedDocumentCount for better performance when no filters
+    if (Object.keys(parsedQuery).length === 0 && !req.query.search) {
+      total = await model.estimatedDocumentCount();
+    } else {
+      // Use countDocuments with the same query for consistency
+      total = await model.countDocuments(queryObj);
+    }
+  }
 
   // Populate
   if (populate) {
@@ -100,28 +110,35 @@ const advancedResults = (model, populate) => async (req, res, next) => {
   // Executing query
   const results = await query;
 
-  // Pagination result
+  // Pagination result - only calculate if we have pagination
   const pagination = {};
+  const endIndex = page * limit;
 
-  if (endIndex < total) {
-    pagination.next = {
-      page: page + 1,
-      limit
-    };
+  if (total > 0) {
+    if (endIndex < total) {
+      pagination.next = {
+        page: page + 1,
+        limit
+      };
+    }
+
+    if (startIndex > 0) {
+      pagination.prev = {
+        page: page - 1,
+        limit
+      };
+    }
+
+    pagination.totalPages = Math.ceil(total / limit);
+    pagination.currentPage = page;
   }
 
-  if (startIndex > 0) {
-    pagination.prev = {
-      page: page - 1,
-      limit
-    };
-  }
-
+  // Construct response object
   res.advancedResults = {
     success: true,
     count: results.length,
-    pagination,
-    total,
+    pagination: Object.keys(pagination).length > 0 ? pagination : undefined,
+    total: total || results.length,
     data: results
   };
 

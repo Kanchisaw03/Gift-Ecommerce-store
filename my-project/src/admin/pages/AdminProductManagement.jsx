@@ -3,130 +3,10 @@ import { motion } from 'framer-motion';
 import { luxuryTheme } from '../../styles/luxuryTheme';
 import DataTable from '../../shared/components/DataTable';
 import ProductApproval from '../components/ProductApproval';
+import { getProducts, updateProduct } from '../../services/api/productService';
+import { getCategories, createCategory } from '../../services/api/categoryService';
+import { toast } from 'react-toastify';
 
-// Mock data for all products
-const mockProducts = [
-  { 
-    id: 1, 
-    name: 'Luxury Watch', 
-    seller: 'Jane Smith', 
-    category: 'Watches',
-    price: 1200, 
-    stock: 15,
-    status: 'active',
-    featured: true,
-    createdAt: '2025-04-15'
-  },
-  { 
-    id: 2, 
-    name: 'Gold Bracelet', 
-    seller: 'Emily Davis', 
-    category: 'Jewelry',
-    price: 850, 
-    stock: 22,
-    status: 'active',
-    featured: false,
-    createdAt: '2025-04-18'
-  },
-  { 
-    id: 3, 
-    name: 'Diamond Earrings', 
-    seller: 'Jane Smith', 
-    category: 'Jewelry',
-    price: 1500, 
-    stock: 8,
-    status: 'active',
-    featured: true,
-    createdAt: '2025-04-20'
-  },
-  { 
-    id: 4, 
-    name: 'Silk Scarf', 
-    seller: 'Emily Davis', 
-    category: 'Accessories',
-    price: 120, 
-    stock: 45,
-    status: 'active',
-    featured: false,
-    createdAt: '2025-04-22'
-  },
-  { 
-    id: 5, 
-    name: 'Leather Wallet', 
-    seller: 'David Wilson', 
-    category: 'Leather Goods',
-    price: 180, 
-    stock: 30,
-    status: 'active',
-    featured: false,
-    createdAt: '2025-04-25'
-  },
-  { 
-    id: 6, 
-    name: 'Luxury Perfume', 
-    seller: 'Sarah Johnson', 
-    category: 'Fragrances',
-    price: 220, 
-    stock: 18,
-    status: 'active',
-    featured: true,
-    createdAt: '2025-04-28'
-  },
-  { 
-    id: 7, 
-    name: 'Crystal Wine Glasses', 
-    seller: 'Michael Brown', 
-    category: 'Home Decor',
-    price: 320, 
-    stock: 12,
-    status: 'active',
-    featured: false,
-    createdAt: '2025-05-01'
-  },
-  { 
-    id: 8, 
-    name: 'Cashmere Scarf', 
-    seller: 'Emily Davis', 
-    category: 'Accessories',
-    price: 150, 
-    stock: 25,
-    status: 'inactive',
-    featured: false,
-    createdAt: '2025-05-05'
-  },
-  { 
-    id: 9, 
-    name: 'Designer Sunglasses', 
-    seller: 'David Wilson', 
-    category: 'Accessories',
-    price: 280, 
-    stock: 20,
-    status: 'active',
-    featured: true,
-    createdAt: '2025-05-08'
-  },
-  { 
-    id: 10, 
-    name: 'Leather Belt', 
-    seller: 'Michael Brown', 
-    category: 'Leather Goods',
-    price: 95, 
-    stock: 35,
-    status: 'active',
-    featured: false,
-    createdAt: '2025-05-10'
-  }
-];
-
-// Mock data for categories
-const mockCategories = [
-  { id: 1, name: 'Watches', productCount: 24 },
-  { id: 2, name: 'Jewelry', productCount: 36 },
-  { id: 3, name: 'Accessories', productCount: 42 },
-  { id: 4, name: 'Leather Goods', productCount: 18 },
-  { id: 5, name: 'Fragrances', productCount: 15 },
-  { id: 6, name: 'Home Decor', productCount: 28 }
-];
 
 const AdminProductManagement = () => {
   const [products, setProducts] = useState([]);
@@ -138,32 +18,38 @@ const AdminProductManagement = () => {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: '' });
 
-  // Simulate data fetching
+  // Fetch products and categories from API
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // In a real app, you would fetch data from your API here
-        // const productsResponse = await fetch('/api/admin/products');
-        // const productsData = await productsResponse.json();
-        // const categoriesResponse = await fetch('/api/admin/categories');
-        // const categoriesData = await categoriesResponse.json();
+        setIsLoading(true);
         
-        // For now, we'll use mock data
-        setProducts(mockProducts);
-        setCategories(mockCategories);
+        // Fetch products from API
+        const productsResponse = await getProducts({ admin: true });
+        if (productsResponse && productsResponse.data && productsResponse.data.products) {
+          setProducts(productsResponse.data.products);
+        } else {
+          console.error('Unexpected product API response format:', productsResponse);
+          setProducts([]);
+        }
+        
+        // Fetch categories from API
+        const categoriesResponse = await getCategories();
+        if (categoriesResponse && categoriesResponse.data) {
+          setCategories(categoriesResponse.data);
+        } else {
+          console.error('Unexpected category API response format:', categoriesResponse);
+          setCategories([]);
+        }
       } catch (error) {
-        console.error('Error fetching product data:', error);
+        console.error('Error fetching data:', error);
+        toast.error('Failed to load products and categories. Please try again later.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    // Simulate API delay
-    const timer = setTimeout(() => {
-      fetchData();
-    }, 1000);
-
-    return () => clearTimeout(timer);
+    fetchData();
   }, []);
 
   // Format currency
@@ -201,21 +87,23 @@ const AdminProductManagement = () => {
   // Handle toggle featured status
   const handleToggleFeatured = async (productId) => {
     try {
-      // In a real app, you would call your API here
-      // await fetch(`/api/admin/products/${productId}/toggle-featured`, {
-      //   method: 'PATCH'
-      // });
+      // Find the product
+      const product = products.find(p => (p._id || p.id) === productId);
+      if (!product) return;
       
-      // For now, we'll just update the local state
-      setProducts(products.map(product => {
-        if (product.id === productId) {
-          return {
-            ...product,
-            featured: !product.featured
-          };
-        }
-        return product;
-      }));
+      // Toggle featured status
+      const newFeaturedStatus = !product.featured;
+      
+      // Call the real API to update product featured status
+      await updateProduct(productId, { featured: newFeaturedStatus });
+      
+      // Update local state
+      setProducts(products.map(p => 
+        (p._id || p.id) === productId ? { ...p, featured: newFeaturedStatus } : p
+      ));
+      
+      // Show success message
+      toast.success(`Product ${newFeaturedStatus ? 'marked as featured' : 'removed from featured'} successfully`);
     } catch (error) {
       console.error('Error toggling featured status:', error);
     }
@@ -236,22 +124,20 @@ const AdminProductManagement = () => {
     }
     
     try {
-      // In a real app, you would call your API here
-      // await fetch('/api/admin/categories', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(newCategory)
-      // });
-      
-      // For now, we'll just update the local state
-      const newCategoryWithId = {
-        ...newCategory,
-        id: categories.length + 1,
-        productCount: 0
-      };
-      
-      setCategories([...categories, newCategoryWithId]);
-      setIsCategoryModalOpen(false);
+      // Call the real API to create a new category
+      const newCategoryResponse = await createCategory(newCategory);
+      if (newCategoryResponse && newCategoryResponse.data) {
+        const newCategoryWithId = {
+          ...newCategoryResponse.data,
+          productCount: 0
+        };
+        
+        setCategories([...categories, newCategoryWithId]);
+        setIsCategoryModalOpen(false);
+        setNewCategory({ name: '' });
+      } else {
+        console.error('Unexpected category API response format:', newCategoryResponse);
+      }
       setNewCategory({ name: '' });
     } catch (error) {
       console.error('Error adding category:', error);

@@ -13,11 +13,23 @@ console.log('API URL configured as:', API_URL);
 const axiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type': 'application/json',
     'Accept': 'application/json'
   },
   withCredentials: true, // Required for cookies and authentication
-  timeout: 15000, // 15 second timeout for slower connections
+  timeout: 60000, // 60 second timeout for slower connections
+});
+
+// Set up request interceptor to handle different content types
+axiosInstance.interceptors.request.use(config => {
+  // Don't set Content-Type for FormData (let browser set it with boundary)
+  if (config.data instanceof FormData) {
+    // Let the browser set the content type with proper boundary for FormData
+    delete config.headers['Content-Type'];
+  } else {
+    // For JSON data, set the content type explicitly
+    config.headers['Content-Type'] = 'application/json';
+  }
+  return config;
 });
 
 // Log requests in development mode

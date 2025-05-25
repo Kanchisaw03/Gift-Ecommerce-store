@@ -31,25 +31,8 @@ const ProtectedRoute = ({
     );
   }
 
-  // Temporarily disable authentication for development
-  // TODO: Remove this before production deployment
-  const DISABLE_AUTH = true;
-  if (DISABLE_AUTH) {
-    // For development, we'll simulate the user having access to all routes
-    // but we'll show a toast message to remind that auth is disabled
-    if (allowedRoles.length > 0 && location.pathname !== redirectPath) {
-      // Only show toast once per session for each protected route
-      const toastKey = `auth-disabled-${location.pathname}`;
-      if (!sessionStorage.getItem(toastKey)) {
-        toast.info(`Auth disabled: This route normally requires ${allowedRoles.join(' or ')} role`, {
-          toastId: toastKey,
-          autoClose: 3000,
-        });
-        sessionStorage.setItem(toastKey, 'true');
-      }
-    }
-    return children;
-  }
+  // Authentication is fully enabled
+  const DISABLE_AUTH = false;
 
   // If user is not authenticated, redirect to login
   if (!isAuthenticated) {

@@ -34,50 +34,37 @@ exports.register = asyncHandler(async (req, res, next) => {
     // Create user with validated role
     const validRole = ['buyer', 'seller', 'admin', 'super_admin'].includes(role) ? role : 'buyer';
     
-    const user = await User.create({
+    // Create user with additional settings
+    const userData = {
       name,
       email,
       password,
       username,
-      role: validRole, // Use validated role
-      // During development, auto-verify users
-      isVerified: process.env.NODE_ENV === 'development' ? true : false
-    });
+      role: validRole,
+      // Auto-verify all users
+      isVerified: true
+    };
+    
+    // Auto-approve seller accounts
+    if (validRole === 'seller') {
+      userData.sellerInfo = {
+        isApproved: true,
+        businessName: req.body.businessName || `${name}'s Store`,
+        businessDescription: req.body.businessDescription || 'Quality products at competitive prices',
+        commission: 10 // Default commission rate
+      };
+    }
+    
+    const user = await User.create(userData);
 
     console.log('User created successfully:', { id: user._id, email: user.email, role: user.role });
-
-    // Skip email verification in development mode
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Development mode: Skipping email verification');
-      return await sendTokenResponse(user, 201, res);
+    
+    if (validRole === 'seller') {
+      console.log('Seller account auto-approved:', { id: user._id, email: user.email });
     }
-
-    // Generate email verification token for production
-    const verificationToken = user.getEmailVerificationToken();
-    await user.save({ validateBeforeSave: false });
-
-    // Create verification URL
-    const verificationUrl = `${req.protocol}://${req.get('host')}/api/auth/verify-email/${verificationToken}`;
-    const message = `You are receiving this email because you need to verify your email address. Please click the link to verify your email: \n\n ${verificationUrl}`;
-
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: 'Email Verification',
-        message
-      });
-      console.log('Verification email sent successfully');
-      
-      // Send token in response
-      await sendTokenResponse(user, 201, res);
-    } catch (emailErr) {
-      console.error('Email sending error:', emailErr);
-      user.emailVerificationToken = undefined;
-      user.emailVerificationExpire = undefined;
-      await user.save({ validateBeforeSave: false });
-
-      return next(new ErrorResponse('Email could not be sent, but account was created. Please contact support.', 500));
-    }
+    
+    // Send token response immediately (no email verification required)
+    await sendTokenResponse(user, 201, res);
   } catch (err) {
     console.error('Registration error:', err);
     

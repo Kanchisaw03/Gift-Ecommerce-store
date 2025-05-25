@@ -3,9 +3,8 @@ const asyncHandler = require('./async');
 const ErrorResponse = require('../utils/errorResponse');
 const User = require('../models/user.model');
 
-// Development mode flag - set to false to enable real authentication
-// TODO: Set this to false before production deployment
-const DISABLE_AUTH = false; // Authentication is now enabled as per user requirements
+// Authentication is fully enabled - development mode is disabled
+const DISABLE_AUTH = false; // Using real authentication with database users
 
 // Mock users for different roles during development
 const MOCK_USERS = {
@@ -198,25 +197,16 @@ exports.authorize = (...roles) => {
   };
 };
 
-// Check if seller is approved
+// Check if user is a seller (no approval required)
 exports.isApprovedSeller = asyncHandler(async (req, res, next) => {
-  // TODO: Remove this development bypass before production deployment
-  if (DISABLE_AUTH) {
-    return next();
-  }
-
+  // Only check if the user is a seller, no approval required
   if (req.user.role !== 'seller') {
     return next(
       new ErrorResponse('Only sellers can access this route', 403)
     );
   }
-
-  if (!req.user.sellerInfo || !req.user.sellerInfo.isApproved) {
-    return next(
-      new ErrorResponse('Seller account is not approved yet', 403)
-    );
-  }
-
+  
+  // Auto-approve all sellers
   next();
 });
 

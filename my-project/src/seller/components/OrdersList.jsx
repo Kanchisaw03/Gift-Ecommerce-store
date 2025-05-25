@@ -2,96 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import DataTable from '../../shared/components/DataTable';
 import { luxuryTheme } from '../../styles/luxuryTheme';
+import { getSellerOrders, updateOrderStatus } from '../../services/api/orderService';
+import { toast } from 'react-toastify';
 
-// Mock data for orders
-const mockOrders = [
-  { 
-    id: 'ORD-10001', 
-    customer: 'John Doe', 
-    email: 'john@example.com',
-    date: '2025-05-18', 
-    total: 350, 
-    status: 'delivered',
-    items: [
-      { id: 1, name: 'Luxury Watch', quantity: 1, price: 350 }
-    ],
-    payment: 'credit_card'
-  },
-  { 
-    id: 'ORD-10002', 
-    customer: 'Jane Smith', 
-    email: 'jane@example.com',
-    date: '2025-05-19', 
-    total: 210, 
-    status: 'processing',
-    items: [
-      { id: 2, name: 'Gold Bracelet', quantity: 1, price: 210 }
-    ],
-    payment: 'paypal'
-  },
-  { 
-    id: 'ORD-10003', 
-    customer: 'Robert Johnson', 
-    email: 'robert@example.com',
-    date: '2025-05-19', 
-    total: 175, 
-    status: 'shipped',
-    items: [
-      { id: 3, name: 'Diamond Earrings', quantity: 1, price: 175 }
-    ],
-    payment: 'credit_card'
-  },
-  { 
-    id: 'ORD-10004', 
-    customer: 'Emily Davis', 
-    email: 'emily@example.com',
-    date: '2025-05-20', 
-    total: 420, 
-    status: 'processing',
-    items: [
-      { id: 4, name: 'Silk Scarf', quantity: 1, price: 120 },
-      { id: 5, name: 'Leather Wallet', quantity: 1, price: 300 }
-    ],
-    payment: 'credit_card'
-  },
-  { 
-    id: 'ORD-10005', 
-    customer: 'Michael Brown', 
-    email: 'michael@example.com',
-    date: '2025-05-20', 
-    total: 220, 
-    status: 'pending',
-    items: [
-      { id: 6, name: 'Luxury Perfume', quantity: 1, price: 220 }
-    ],
-    payment: 'paypal'
-  },
-  { 
-    id: 'ORD-10006', 
-    customer: 'Sarah Wilson', 
-    email: 'sarah@example.com',
-    date: '2025-05-20', 
-    total: 350, 
-    status: 'pending',
-    items: [
-      { id: 7, name: 'Crystal Decanter', quantity: 1, price: 350 }
-    ],
-    payment: 'credit_card'
-  },
-  { 
-    id: 'ORD-10007', 
-    customer: 'David Miller', 
-    email: 'david@example.com',
-    date: '2025-05-21', 
-    total: 250, 
-    status: 'cancelled',
-    items: [
-      { id: 8, name: 'Cashmere Scarf', quantity: 1, price: 160 },
-      { id: 9, name: 'Silver Cufflinks', quantity: 1, price: 90 }
-    ],
-    payment: 'credit_card'
-  }
-];
 
 const OrdersList = () => {
   const [orders, setOrders] = useState([]);
@@ -99,29 +12,30 @@ const OrdersList = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-  // Simulate data fetching
+  // Fetch orders from API
   useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchOrderData = async () => {
       try {
-        // In a real app, you would fetch data from your API here
-        // const response = await fetch('/api/seller/orders');
-        // const data = await response.json();
+        setIsLoading(true);
+        // Use the real API service to get seller orders
+        const response = await getSellerOrders();
         
-        // For now, we'll use mock data
-        setOrders(mockOrders);
+        if (response && response.data) {
+          setOrders(response.data);
+        } else {
+          console.error('Unexpected API response format:', response);
+          setOrders([]);
+        }
       } catch (error) {
         console.error('Error fetching orders:', error);
+        toast.error('Failed to load orders. Please try again later.');
+        setOrders([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    // Simulate API delay
-    const timer = setTimeout(() => {
-      fetchOrders();
-    }, 1000);
-
-    return () => clearTimeout(timer);
+    fetchOrderData();
   }, []);
 
   // Format currency
@@ -142,17 +56,16 @@ const OrdersList = () => {
   // Handle update order status
   const handleUpdateStatus = async (orderId, newStatus) => {
     try {
-      // In a real app, you would call your API here
-      // await fetch(`/api/seller/orders/${orderId}`, {
-      //   method: 'PATCH',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ status: newStatus })
-      // });
+      // Call the real API to update order status
+      await updateOrderStatus(orderId, { status: newStatus });
       
-      // For now, we'll just update the local state
+      // Update the local state
       setOrders(orders.map(order => 
-        order.id === orderId ? { ...order, status: newStatus } : order
+        (order._id || order.id) === orderId ? { ...order, status: newStatus } : order
       ));
+      
+      // Show success message
+      toast.success(`Order status updated to ${newStatus}`);
       
       // Update selected order if modal is open
       if (selectedOrder && selectedOrder.id === orderId) {

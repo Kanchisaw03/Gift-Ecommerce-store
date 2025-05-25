@@ -14,9 +14,8 @@ const ProtectedRoute = ({ children, allowedRoles, requireVerified = false }) => 
   const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
   
-  // DEVELOPMENT MODE: Toggle this to enable/disable authentication checks
-  // TODO: Set to false before production deployment
-  const DEVELOPMENT_MODE = true;
+  // Authentication is fully enabled
+  const DEVELOPMENT_MODE = false;
   
   useEffect(() => {
     // After auth context is loaded, we can finish our check

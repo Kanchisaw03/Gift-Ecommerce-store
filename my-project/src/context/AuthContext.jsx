@@ -283,15 +283,12 @@ export const AuthProvider = ({ children }) => {
     return user.role === role;
   };
 
+  // Authentication is fully enabled - no development mode
+  const DEVELOPMENT_MODE = false;
+
   // Check if user has any of the specified roles
   const hasAnyRole = (roles) => {
-    // In development mode, always return true if authentication is bypassed
-    if (DEVELOPMENT_MODE && localStorage.getItem('isAuthenticated') === 'true') {
-      const userRole = localStorage.getItem('userRole');
-      return roles.includes(userRole);
-    }
-    
-    // Normal role check
+    // Normal role check - development mode is disabled
     return user && roles.includes(user.role);
   };
 

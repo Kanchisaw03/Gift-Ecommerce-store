@@ -89,7 +89,7 @@ exports.syncCart = asyncHandler(async (req, res, next) => {
               description: 'Automatically created test product',
               price: item.price || 999.99,
               stock: 100,
-              status: 'active',
+              status: 'approved', // Changed from 'active' to 'approved' to match the enum values
               seller: req.user.id,
               category: '6831ee54319db2b4b0e9295e' // Default category ID
             });

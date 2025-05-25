@@ -7,25 +7,10 @@ import { useAuth } from "../hooks/useAuth";
 import ProductCard from "../components/ProductCard";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { luxuryTheme } from "../styles/luxuryTheme";
+import { getProductById, getRelatedProducts } from "../services/api/productService";
+import { getProductReviews, addProductReview } from "../services/api/productService";
 
-// Mock service functions since the actual services don't exist yet
-const getProductById = async (id) => {
-  // This would be replaced with an actual API call
-  return Promise.resolve(null);
-};
 
-const getRelatedProducts = async (id) => {
-  // This would be replaced with an actual API call
-  return Promise.resolve([]);
-};
-
-// Mock reviews data
-const mockReviews = [
-  { id: 1, user: "Emily Johnson", rating: 5, date: "2023-04-15", content: "Absolutely love this gift! The quality is exceptional and it arrived beautifully packaged. Would definitely recommend!" },
-  { id: 2, user: "Michael Chen", rating: 4, date: "2023-04-02", content: "Great product for the price. The recipient was very happy with it." },
-  { id: 3, user: "Sophia Rodriguez", rating: 5, date: "2023-03-28", content: "Perfect gift for my friend's birthday. The presentation was lovely and the quality is excellent." },
-  { id: 4, user: "James Wilson", rating: 3, date: "2023-03-15", content: "Nice gift but a bit smaller than I expected. Still good quality though." },
-];
 
 export default function Product() {
   const { id } = useParams();
@@ -36,7 +21,7 @@ export default function Product() {
   // State for product data
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
-  const [reviews, setReviews] = useState(mockReviews);
+  const [reviews, setReviews] = useState([]);
   const [error, setError] = useState(null);
 
   // UI state
@@ -61,85 +46,30 @@ export default function Product() {
       setError(null);
 
       try {
-        // DEVELOPMENT MODE: Check if we should use mock API
-        const MOCK_API = true; // Set to true for development mode
+        // Real API calls
+        const productResponse = await getProductById(id);
         
-        if (MOCK_API) {
-          // Simulate API call delay
-          await new Promise(resolve => setTimeout(resolve, 800));
-          
-          // Mock product data
-          const mockProduct = {
-            id: id,
-            name: "Luxury Gift Box Collection",
-            price: 149.99,
-            discount: 20,
-            rating: 4.8,
-            stock: 15,
-            images: [
-              "/images/product1.jpg",
-              "/images/product2.jpg",
-              "/images/product3.jpg"
-            ],
-            category: "Gift Sets",
-            tags: ["Luxury", "Gift Set", "Premium"],
-            description: "Our signature luxury gift box features a curated selection of premium items, elegantly packaged in our signature gold-accented box. Perfect for special occasions or as a thoughtful gesture for someone special."
-          };
-          
-          // Mock related products
-          const mockRelated = [
-            {
-              id: "related1",
-              name: "Premium Wine Gift Set",
-              price: 129.99,
-              discount: 0,
-              rating: 4.6,
-              image: "/images/related1.jpg",
-              category: "Gift Sets"
-            },
-            {
-              id: "related2",
-              name: "Artisanal Chocolate Collection",
-              price: 79.99,
-              discount: 10,
-              rating: 4.9,
-              image: "/images/related2.jpg",
-              category: "Gift Sets"
-            },
-            {
-              id: "related3",
-              name: "Luxury Spa Gift Basket",
-              price: 159.99,
-              discount: 15,
-              rating: 4.7,
-              image: "/images/related3.jpg",
-              category: "Gift Sets"
-            },
-            {
-              id: "related4",
-              name: "Gourmet Food Hamper",
-              price: 189.99,
-              discount: 0,
-              rating: 4.8,
-              image: "/images/related4.jpg",
-              category: "Gift Sets"
-            }
-          ];
-          
-          setProduct(mockProduct);
-          setRelatedProducts(mockRelated);
-        } else {
-          // Real API calls
-          const productData = await getProductById(id);
-          setProduct(productData);
-          
-          const relatedData = await getRelatedProducts(id);
-          setRelatedProducts(relatedData);
+        if (!productResponse || !productResponse.data) {
+          throw new Error("Product not found");
+        }
+        
+        setProduct(productResponse.data);
+        
+        // Fetch related products
+        const relatedResponse = await getRelatedProducts(id);
+        if (relatedResponse && relatedResponse.data) {
+          setRelatedProducts(relatedResponse.data);
+        }
+        
+        // Fetch product reviews
+        const reviewsResponse = await getProductReviews(id);
+        if (reviewsResponse && reviewsResponse.data) {
+          setReviews(reviewsResponse.data);
         }
       } catch (err) {
         console.error("Error fetching product:", err);
-        setError("Failed to load product data. Please try again.");
-        toast.error("Failed to load product data");
+        setError(err.message || "Failed to load product");
+        toast.error(err.message || "Failed to load product");
       } finally {
         setIsLoading(false);
       }
@@ -183,10 +113,15 @@ export default function Product() {
   };
 
   // Handle review submission
-  const handleReviewSubmit = (e) => {
+  const handleReviewSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate form
+    if (!user) {
+      toast.error("Please log in to submit a review");
+      navigate("/login");
+      return;
+    }
+    
     if (!reviewForm.comment.trim()) {
       toast.error("Please enter a review comment");
       return;
@@ -194,26 +129,29 @@ export default function Product() {
     
     setIsSubmittingReview(true);
     
-    // DEVELOPMENT MODE: Simulate API call
-    setTimeout(() => {
-      // Create new review
-      const newReview = {
-        id: `review-${Date.now()}`,
-        user: user?.name || "Anonymous User",
+    try {
+      // Call the real API to add a product review
+      const reviewData = {
         rating: reviewForm.rating,
-        date: new Date().toISOString(),
-        content: reviewForm.comment
+        comment: reviewForm.comment.trim()
       };
       
-      // Update reviews state
-      setReviews([newReview, ...reviews]);
+      const response = await addProductReview(id, reviewData);
       
-      // Reset form
-      setReviewForm({ rating: 5, comment: "" });
+      if (response && response.data) {
+        // Add the new review to the state
+        setReviews([response.data, ...reviews]);
+        setReviewForm({ rating: 5, comment: "" });
+        toast.success("Review submitted successfully!");
+      } else {
+        throw new Error("Unexpected API response");
+      }
+    } catch (error) {
+      console.error("Error submitting review:", error);
+      toast.error("Failed to submit review. Please try again.");
+    } finally {
       setIsSubmittingReview(false);
-      
-      toast.success("Review submitted successfully!");
-    }, 1000);
+    }
   };
 
   // Show error message if product fails to load

@@ -7,9 +7,17 @@ import axiosInstance from './axiosConfig';
  */
 export const getUserProfile = async (userId = 'me') => {
   try {
-    const response = await axiosInstance.get(`/users/${userId}`);
-    return response.data;
+    // If userId is 'me', use the auth/me endpoint instead of users/me
+    if (userId === 'me') {
+      const response = await axiosInstance.get('/auth/me');
+      return response.data;
+    } else {
+      // For specific user IDs, use the users/:id endpoint
+      const response = await axiosInstance.get(`/users/${userId}`);
+      return response.data;
+    }
   } catch (error) {
+    console.error('Error in getUserProfile:', error);
     throw error.response?.data || { message: 'Failed to get user profile' };
   }
 };
@@ -187,5 +195,48 @@ export const markAllNotificationsAsRead = async () => {
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to mark all notifications as read' };
+  }
+};
+
+/**
+ * Delete user
+ * @param {string} userId - User ID to delete
+ * @returns {Promise} - Response from API
+ */
+export const deleteUser = async (userId) => {
+  try {
+    const response = await axiosInstance.delete(`/users/${userId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to delete user' };
+  }
+};
+
+/**
+ * Update user status (active/inactive)
+ * @param {string} userId - User ID
+ * @param {Object} statusData - Status data (isActive: boolean)
+ * @returns {Promise} - Response from API
+ */
+export const updateUserStatus = async (userId, statusData) => {
+  try {
+    const response = await axiosInstance.put(`/users/${userId}/status`, statusData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to update user status' };
+  }
+};
+
+/**
+ * Get all users (admin only)
+ * @param {Object} params - Query parameters (page, limit, role, search)
+ * @returns {Promise} - Response from API
+ */
+export const getAllUsers = async (params = {}) => {
+  try {
+    const response = await axiosInstance.get('/users', { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch users' };
   }
 };

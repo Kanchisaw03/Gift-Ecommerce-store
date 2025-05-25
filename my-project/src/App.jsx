@@ -10,6 +10,11 @@ import "./styles/luxuryStyles.css";
 // Contexts
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
+import { ProductProvider } from "./context/ProductContext";
+import { UserProvider } from "./context/UserContext";
+import { SellerProvider } from "./context/SellerContext";
+import { AdminProvider } from "./context/AdminContext";
+import { SuperAdminProvider } from "./context/SuperAdminContext";
 import { ROLES } from "./context/AuthContext";
 import ProtectedRoute from "./shared/components/ProtectedRoute";
 
@@ -47,6 +52,7 @@ import SellerOrderDetails from "./seller/pages/SellerOrderDetails";
 import SellerAnalytics from "./seller/pages/SellerAnalytics";
 import SellerEarnings from "./seller/pages/SellerEarnings";
 import SellerSettings from "./seller/pages/SellerSettings";
+import TestProductPage from "./seller/pages/TestProductPage";
 
 // Admin Pages
 import AdminDashboard from "./admin/pages/AdminDashboard";
@@ -89,8 +95,13 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <CartProvider>
-        <ScrollToTop />
+        <ProductProvider>
+          <CartProvider>
+            <UserProvider>
+              <SellerProvider>
+                <AdminProvider>
+                  <SuperAdminProvider>
+                    <ScrollToTop />
         <div className="flex flex-col min-h-screen w-full overflow-x-hidden bg-[#0A0A0A] text-white font-sans">
           <ToastContainer 
             position="top-right"
@@ -151,6 +162,7 @@ export default function App() {
                   <Route path="/seller/analytics" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><SellerAnalytics /></ProtectedRoute>} />
                   <Route path="/seller/earnings" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><SellerEarnings /></ProtectedRoute>} />
                   <Route path="/seller/settings" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><SellerSettings /></ProtectedRoute>} />
+                  <Route path="/seller/test-product" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><TestProductPage /></ProtectedRoute>} />
                   
                   {/* Admin Routes */}
                   {/* Protected routes with role-based access control */}
@@ -182,7 +194,12 @@ export default function App() {
           <Footer />
           <CartSidebar isOpen={cartOpen} onClose={() => setCartOpen(false)} />
         </div>
-        </CartProvider>
+                  </SuperAdminProvider>
+                </AdminProvider>
+              </SellerProvider>
+            </UserProvider>
+          </CartProvider>
+        </ProductProvider>
       </AuthProvider>
     </BrowserRouter>
   );

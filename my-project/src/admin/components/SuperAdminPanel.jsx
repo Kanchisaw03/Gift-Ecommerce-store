@@ -1,95 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
 import { luxuryTheme } from '../../styles/luxuryTheme';
 import DataTable from '../../shared/components/DataTable';
+import { createAdmin, getAdmins, getSystemLogs } from '../../services/api/superAdminService';
 
-// Mock data for admin users
-const mockAdmins = [
-  { 
-    id: 1, 
-    name: 'John Smith', 
-    email: 'john@luxehaven.com',
-    role: 'Super Admin',
-    lastLogin: '2025-05-20 18:45:22',
-    status: 'active'
-  },
-  { 
-    id: 2, 
-    name: 'Emily Davis', 
-    email: 'emily@luxehaven.com',
-    role: 'Admin',
-    lastLogin: '2025-05-19 14:30:15',
-    status: 'active'
-  },
-  { 
-    id: 3, 
-    name: 'Michael Johnson', 
-    email: 'michael@luxehaven.com',
-    role: 'Admin',
-    lastLogin: '2025-05-18 09:15:43',
-    status: 'active'
-  },
-  { 
-    id: 4, 
-    name: 'Sarah Williams', 
-    email: 'sarah@luxehaven.com',
-    role: 'Admin',
-    lastLogin: '2025-05-17 16:22:10',
-    status: 'inactive'
-  }
-];
 
-// Mock data for system logs
-const mockSystemLogs = [
-  {
-    id: 1,
-    action: 'User Login',
-    user: 'John Smith',
-    details: 'Super Admin login from 192.168.1.105',
-    timestamp: '2025-05-20 23:15:42',
-    level: 'info'
-  },
-  {
-    id: 2,
-    action: 'Settings Updated',
-    user: 'John Smith',
-    details: 'Commission rate changed from 8% to 10%',
-    timestamp: '2025-05-20 22:45:18',
-    level: 'warning'
-  },
-  {
-    id: 3,
-    action: 'Product Deleted',
-    user: 'Emily Davis',
-    details: 'Product ID #5892 removed from catalog',
-    timestamp: '2025-05-20 20:12:33',
-    level: 'warning'
-  },
-  {
-    id: 4,
-    action: 'User Suspended',
-    user: 'Michael Johnson',
-    details: 'User ID #342 suspended for policy violation',
-    timestamp: '2025-05-20 19:05:27',
-    level: 'error'
-  },
-  {
-    id: 5,
-    action: 'Backup Completed',
-    user: 'System',
-    details: 'Daily database backup completed successfully',
-    timestamp: '2025-05-20 04:00:12',
-    level: 'info'
-  },
-  {
-    id: 6,
-    action: 'New Admin Added',
-    user: 'John Smith',
-    details: 'New admin account created for Sarah Williams',
-    timestamp: '2025-05-19 15:22:48',
-    level: 'warning'
-  }
-];
+
+
 
 const SuperAdminPanel = () => {
   const [admins, setAdmins] = useState([]);
@@ -100,37 +18,74 @@ const SuperAdminPanel = () => {
   const [newAdmin, setNewAdmin] = useState({
     name: '',
     email: '',
+    username: '',
     password: '',
     role: 'Admin'
   });
   const [formErrors, setFormErrors] = useState({});
 
-  // Simulate data fetching
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // In a real app, you would fetch data from your API here
-        // const adminsResponse = await fetch('/api/super-admin/admins');
-        // const adminsData = await adminsResponse.json();
-        // const logsResponse = await fetch('/api/super-admin/logs');
-        // const logsData = await logsResponse.json();
+  // Function to fetch admin data from the API
+  const fetchAdminData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch real admin data from the API
+      const adminResponse = await getAdmins();
+      
+      if (adminResponse && adminResponse.success) {
+        // Map the API response to the format expected by the component
+        const formattedAdmins = adminResponse.data.map(admin => ({
+          id: admin._id,
+          name: admin.name,
+          email: admin.email,
+          role: admin.role.charAt(0).toUpperCase() + admin.role.slice(1), // Capitalize role
+          lastLogin: admin.updatedAt ? new Date(admin.updatedAt).toLocaleString() : 'Never',
+          status: admin.isActive ? 'active' : 'inactive'
+        }));
         
-        // For now, we'll use mock data
-        setAdmins(mockAdmins);
-        setSystemLogs(mockSystemLogs);
-      } catch (error) {
-        console.error('Error fetching super admin data:', error);
-      } finally {
-        setIsLoading(false);
+        setAdmins(formattedAdmins);
+      } else {
+        toast.error('Failed to load administrators');
+        setAdmins([]);
       }
-    };
+      
+      // Try to get system logs from the API
+      try {
+        const logsResponse = await getSystemLogs();
+        
+        if (logsResponse && logsResponse.success && logsResponse.data) {
+          // Map the API response to the format expected by the component
+          const formattedLogs = logsResponse.data.map(log => ({
+            id: log._id,
+            action: log.action,
+            user: log.user ? log.user.name || log.user.email : 'System',
+            details: log.details,
+            timestamp: new Date(log.timestamp || log.createdAt).toLocaleString(),
+            level: log.level || 'info'
+          }));
+          
+          setSystemLogs(formattedLogs);
+        } else {
+          // API returned success but no data
+          setSystemLogs([]);
+        }
+      } catch (error) {
+        console.error('Error fetching system logs:', error);
+        // Set empty logs array if API call fails
+        setSystemLogs([]);
+      }
+    } catch (error) {
+      console.error('Error fetching super admin data:', error);
+      toast.error('Failed to load dashboard data');
+      setAdmins([]);
+      setSystemLogs([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    // Simulate API delay
-    const timer = setTimeout(() => {
-      fetchData();
-    }, 1000);
-
-    return () => clearTimeout(timer);
+  // Fetch admin data on component mount
+  useEffect(() => {
+    fetchAdminData();
   }, []);
 
   // Handle input changes for new admin form
@@ -160,14 +115,20 @@ const SuperAdminPanel = () => {
     
     if (!newAdmin.email.trim()) {
       errors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(newAdmin.email)) {
-      errors.email = 'Email is invalid';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newAdmin.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    if (!newAdmin.username.trim()) {
+      errors.username = 'Username is required';
+    } else if (newAdmin.username.length < 3) {
+      errors.username = 'Username must be at least 3 characters';
     }
     
     if (!newAdmin.password) {
       errors.password = 'Password is required';
-    } else if (newAdmin.password.length < 8) {
-      errors.password = 'Password must be at least 8 characters';
+    } else if (newAdmin.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
     }
     
     setFormErrors(errors);
@@ -183,31 +144,64 @@ const SuperAdminPanel = () => {
     }
     
     try {
-      // In a real app, you would call your API here
-      // await fetch('/api/super-admin/admins', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(newAdmin)
-      // });
+      // Show loading state
+      setIsLoading(true);
       
-      // For now, we'll just update the local state
-      const newAdminWithId = {
-        ...newAdmin,
-        id: admins.length + 1,
-        lastLogin: 'Never',
-        status: 'active'
-      };
-      
-      setAdmins([...admins, newAdminWithId]);
-      setShowAddAdminModal(false);
-      setNewAdmin({
-        name: '',
-        email: '',
-        password: '',
-        role: 'Admin'
+      // Call the API to create a new admin
+      const response = await createAdmin({
+        name: newAdmin.name,
+        email: newAdmin.email,
+        username: newAdmin.username,
+        password: newAdmin.password,
+        role: newAdmin.role.toLowerCase() // API expects lowercase role
       });
+      
+      if (response && response.success) {
+        // Refresh the admin list to include the new admin
+        await fetchAdminData();
+        
+        // Reset form and close modal
+        setShowAddAdminModal(false);
+        setNewAdmin({ name: '', email: '', username: '', password: '', role: 'Admin' });
+        toast.success('Administrator added successfully');
+      } else {
+        toast.error(response?.message || 'Failed to add administrator');
+      }
     } catch (error) {
       console.error('Error adding admin:', error);
+      
+      // Check for duplicate key error (MongoDB error code 11000)
+      if (error.response?.data?.code === 11000 || 
+          error.response?.data?.error?.code === 11000 ||
+          error.code === 11000) {
+        // Determine which field has the duplicate value
+        const errorMessage = error.response?.data?.message || error.message || '';
+        const keyPattern = error.response?.data?.keyPattern || error.keyPattern || {};
+        
+        if (keyPattern.email) {
+          setFormErrors({
+            ...formErrors,
+            email: 'This email is already in use. Please use a different email address.'
+          });
+          toast.error('Email address already exists');
+        } else if (keyPattern.username) {
+          setFormErrors({
+            ...formErrors,
+            username: 'This username is already in use. Please choose a different username.'
+          });
+          toast.error('Username already exists');
+        } else {
+          setFormErrors({
+            ...formErrors,
+            email: 'This email is already in use. Please use a different email address.'
+          });
+          toast.error('Email address already exists');
+        }
+      } else {
+        toast.error(error.response?.data?.message || error.message || 'Failed to add administrator');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -522,6 +516,32 @@ const SuperAdminPanel = () => {
                 {formErrors.email && (
                   <p className="mt-1 text-sm text-red-500">
                     {formErrors.email}
+                  </p>
+                )}
+              </div>
+              
+              <div className="mb-4">
+                <label 
+                  htmlFor="username" 
+                  className="block text-sm font-medium text-gray-300 mb-2"
+                  style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
+                >
+                  Username
+                </label>
+                <input
+                  type="text"
+                  id="username"
+                  name="username"
+                  value={newAdmin.username}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-2 bg-black/20 border ${
+                    formErrors.username ? 'border-red-500' : 'border-gold/30'
+                  } focus:outline-none focus:border-gold text-white`}
+                  style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
+                />
+                {formErrors.username && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {formErrors.username}
                   </p>
                 )}
               </div>

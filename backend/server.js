@@ -7,8 +7,11 @@ const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
+const fileUpload = require('express-fileupload');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsDoc = require('swagger-jsdoc');
+const http = require('http');
+const socketio = require('socket.io');
 
 // Load environment variables
 dotenv.config();
@@ -39,9 +42,78 @@ const settingRoutes = require('./routes/setting.routes');
 const reportRoutes = require('./routes/report.routes');
 const webhookRoutes = require('./routes/webhook.routes');
 const contactRoutes = require('./routes/contact.routes');
+const testRoutes = require('./routes/test.routes');
 
 // Initialize express app
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+const io = socketio(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
+  }
+});
+
+// Socket.IO middleware for authentication
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+    console.log('Socket auth token received:', token ? 'Present' : 'Missing');
+    
+    if (!token) {
+      console.log('Socket connection rejected: No token provided');
+      return next(new Error('Authentication error: No token provided'));
+    }
+    
+    // You can verify the token here if needed
+    // For now, we'll just accept any token
+    
+    console.log('Socket authentication successful');
+    next();
+  } catch (error) {
+    console.error('Socket authentication error:', error.message);
+    next(new Error('Authentication error'));
+  }
+});
+
+// Socket.IO connection handler
+io.on('connection', (socket) => {
+  console.log(`Socket connected: ${socket.id}`);
+  
+  // Emit a welcome event to confirm connection
+  socket.emit('welcome', { message: 'Connected to server successfully' });
+  
+  // Join room (e.g., for product details page)
+  socket.on('joinRoom', (room) => {
+    socket.join(room);
+    console.log(`Socket ${socket.id} joined room: ${room}`);
+  });
+  
+  // Leave room
+  socket.on('leaveRoom', (room) => {
+    socket.leave(room);
+    console.log(`Socket ${socket.id} left room: ${room}`);
+  });
+  
+  // Disconnect
+  socket.on('disconnect', (reason) => {
+    console.log(`Socket disconnected: ${socket.id}, reason: ${reason}`);
+  });
+  
+  // Error handling
+  socket.on('error', (error) => {
+    console.error(`Socket error for ${socket.id}:`, error);
+  });
+});
+
+// Make io accessible to route handlers
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 
 // Connect to database
 connectDB();
@@ -71,6 +143,20 @@ const swaggerDocs = swaggerJsDoc(swaggerOptions);
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// File upload middleware
+app.use(fileUpload({
+  useTempFiles: true,
+  tempFileDir: '/tmp/',
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max file size
+  abortOnLimit: true,
+  debug: false, // Disable debug mode to silence warnings
+  uploadTimeout: 0, // No timeout
+  createParentPath: true, // Create parent path if it doesn't exist
+  safeFileNames: true, // Remove special characters from file names
+  preserveExtension: true, // Preserve file extensions
+  parseNested: true, // Parse nested objects in form data
+}));
 
 // Parse cookies
 app.use(cookieParser(process.env.COOKIE_SECRET || 'luxury-ecommerce-secret'));
@@ -146,12 +232,19 @@ app.use(xss());
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: process.env.NODE_ENV === 'development' ? 1 * 60 * 1000 : 15 * 60 * 1000, // 1 minute in dev, 15 minutes in prod
+  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // Higher limit in development
   standardHeaders: true,
   legacyHeaders: false,
+  message: 'Too many requests from this IP, please try again later.'
 });
-app.use('/api', limiter);
+
+// Apply rate limiting only to auth routes in development to prevent login issues
+if (process.env.NODE_ENV === 'development') {
+  app.use('/api/auth/login', limiter); // Only limit login endpoint
+} else {
+  app.use('/api', limiter); // Limit all API endpoints in production
+}
 
 // Logging in development mode
 if (process.env.NODE_ENV === 'development') {
@@ -197,6 +290,7 @@ app.use('/api/settings', settingRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/test', testRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -235,11 +329,13 @@ console.log(`Environment: ${process.env.NODE_ENV}`);
 console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
 console.log(`Port: ${PORT}`);
 
-const server = app.listen(PORT, () => {
+// Use the HTTP server with Socket.IO instead of Express server directly
+server.listen(PORT, () => {
   console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
   console.log('API routes available at:');
   console.log(`- Auth: http://localhost:${PORT}/api/auth`);
   console.log(`- Health check: http://localhost:${PORT}/api/health`);
+  console.log(`- Socket.IO enabled for real-time updates`);
 });
 
 // Handle unhandled promise rejections

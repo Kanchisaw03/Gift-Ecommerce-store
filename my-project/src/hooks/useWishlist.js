@@ -113,7 +113,9 @@ const useWishlist = () => {
    * @returns {boolean} - Whether product is in wishlist
    */
   const isInWishlist = useCallback((productId) => {
-    return wishlistItems.some((item) => (item._id || item.id) === productId);
+    if (!productId) return false;
+    if (!wishlistItems || !Array.isArray(wishlistItems)) return false;
+    return wishlistItems.some((item) => (item?._id || item?.id) === productId);
   }, [wishlistItems]);
 
   /**

@@ -146,3 +146,46 @@ export const getOrderReceipt = async (orderId) => {
     throw error.response?.data || { message: 'Failed to fetch receipt' };
   }
 };
+
+/**
+ * Get seller orders (seller only)
+ * @param {Object} params - Query parameters (page, limit, status)
+ * @returns {Promise} - Response from API
+ */
+export const getSellerOrders = async (params = {}) => {
+  try {
+    const response = await axiosInstance.get('/seller/orders', { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch seller orders' };
+  }
+};
+
+/**
+ * Update order status
+ * @param {string} orderId - Order ID
+ * @param {Object} statusData - Status update data (status, notes)
+ * @returns {Promise} - Response from API
+ */
+export const updateOrderStatus = async (orderId, statusData) => {
+  try {
+    const response = await axiosInstance.put(`/orders/${orderId}/status`, statusData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to update order status' };
+  }
+};
+
+/**
+ * Get all orders (admin only)
+ * @param {Object} params - Query parameters (page, limit, status)
+ * @returns {Promise} - Response from API
+ */
+export const getAllOrders = async (params = {}) => {
+  try {
+    const response = await axiosInstance.get('/admin/orders', { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch all orders' };
+  }
+};

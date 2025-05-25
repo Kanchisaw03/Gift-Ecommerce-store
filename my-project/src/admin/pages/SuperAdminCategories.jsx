@@ -1,87 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
+import * as categoryService from '../../services/api/categoryService';
+import { FiLoader } from 'react-icons/fi';
+import axios from 'axios';
 
 const SuperAdminCategories = () => {
-  const [categories, setCategories] = useState([
-    {
-      id: 1,
-      name: 'Jewelry & Watches',
-      slug: 'jewelry-watches',
-      description: 'Luxury jewelry pieces and premium watches',
-      featured: true,
-      image: 'jewelry-category.jpg',
-      products: 245,
-      subcategories: [
-        { id: 101, name: 'Necklaces', slug: 'necklaces', products: 68 },
-        { id: 102, name: 'Earrings', slug: 'earrings', products: 54 },
-        { id: 103, name: 'Bracelets', slug: 'bracelets', products: 42 },
-        { id: 104, name: 'Luxury Watches', slug: 'luxury-watches', products: 81 }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Home Decor',
-      slug: 'home-decor',
-      description: 'Elegant home decorations and accessories',
-      featured: true,
-      image: 'home-decor-category.jpg',
-      products: 187,
-      subcategories: [
-        { id: 201, name: 'Wall Art', slug: 'wall-art', products: 45 },
-        { id: 202, name: 'Vases & Vessels', slug: 'vases-vessels', products: 38 },
-        { id: 203, name: 'Decorative Objects', slug: 'decorative-objects', products: 64 },
-        { id: 204, name: 'Candles & Diffusers', slug: 'candles-diffusers', products: 40 }
-      ]
-    },
-    {
-      id: 3,
-      name: 'Glassware & Bar',
-      slug: 'glassware-bar',
-      description: 'Premium glassware and bar accessories',
-      featured: true,
-      image: 'glassware-category.jpg',
-      products: 156,
-      subcategories: [
-        { id: 301, name: 'Wine Glasses', slug: 'wine-glasses', products: 42 },
-        { id: 302, name: 'Whiskey Glasses', slug: 'whiskey-glasses', products: 38 },
-        { id: 303, name: 'Decanters', slug: 'decanters', products: 25 },
-        { id: 304, name: 'Bar Tools', slug: 'bar-tools', products: 51 }
-      ]
-    },
-    {
-      id: 4,
-      name: 'Textiles & Bedding',
-      slug: 'textiles-bedding',
-      description: 'Luxury textiles, throws, and bedding',
-      featured: false,
-      image: 'textiles-category.jpg',
-      products: 134,
-      subcategories: [
-        { id: 401, name: 'Throw Blankets', slug: 'throw-blankets', products: 35 },
-        { id: 402, name: 'Decorative Pillows', slug: 'decorative-pillows', products: 48 },
-        { id: 403, name: 'Luxury Bedding', slug: 'luxury-bedding', products: 32 },
-        { id: 404, name: 'Table Linens', slug: 'table-linens', products: 19 }
-      ]
-    },
-    {
-      id: 5,
-      name: 'Stationery & Desk',
-      slug: 'stationery-desk',
-      description: 'Premium stationery and desk accessories',
-      featured: false,
-      image: 'stationery-category.jpg',
-      products: 98,
-      subcategories: [
-        { id: 501, name: 'Journals & Notebooks', slug: 'journals-notebooks', products: 32 },
-        { id: 502, name: 'Writing Instruments', slug: 'writing-instruments', products: 28 },
-        { id: 503, name: 'Desk Accessories', slug: 'desk-accessories', products: 38 }
-      ]
-    }
-  ]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingSubcategory, setEditingSubcategory] = useState(null);
-  const [expandedCategories, setExpandedCategories] = useState([1, 2]);
+  const [expandedCategories, setExpandedCategories] = useState([]);
   const [showNewCategoryForm, setShowNewCategoryForm] = useState(false);
   const [newCategory, setNewCategory] = useState({
     name: '',
@@ -91,6 +22,36 @@ const SuperAdminCategories = () => {
     image: '',
     subcategories: []
   });
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await categoryService.getCategories();
+        console.log('Categories API response:', response);
+        
+        // Format the data to match our component's expected structure
+        const formattedCategories = Array.isArray(response) ? response : response.categories || [];
+        
+        // Set initial expanded categories
+        if (formattedCategories.length > 0) {
+          setExpandedCategories([formattedCategories[0]._id]);
+        }
+        
+        setCategories(formattedCategories);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+        setError('Failed to load categories. Please try again.');
+        toast.error('Failed to load categories');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const handleToggleExpand = (categoryId) => {
     if (expandedCategories.includes(categoryId)) {
@@ -119,29 +80,91 @@ const SuperAdminCategories = () => {
     setEditingSubcategory(null);
   };
 
-  const handleSaveCategory = () => {
-    setCategories(categories.map(category => 
-      category.id === editingCategory.id ? editingCategory : category
-    ));
-    setEditingCategory(null);
+  const handleSaveCategory = async () => {
+    try {
+      setLoading(true);
+      
+      // Make API call to update category
+      await categoryService.updateCategory(editingCategory._id, {
+        name: editingCategory.name,
+        slug: editingCategory.slug,
+        description: editingCategory.description,
+        featured: editingCategory.featured,
+        image: editingCategory.image
+      });
+      
+      // Update local state
+      const updatedCategories = categories.map(cat => {
+        if (cat._id === editingCategory._id) {
+          return { ...editingCategory };
+        }
+        return cat;
+      });
+      
+      setCategories(updatedCategories);
+      setEditingCategory(null);
+      toast.success('Category updated successfully');
+    } catch (err) {
+      console.error('Error updating category:', err);
+      toast.error('Failed to update category');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveSubcategory = () => {
-    setCategories(categories.map(category => 
-      category.id === editingSubcategory.categoryId 
-        ? {
-            ...category,
-            subcategories: category.subcategories.map(subcategory => 
-              subcategory.id === editingSubcategory.id ? editingSubcategory : subcategory
-            )
-          }
-        : category
-    ));
-    setEditingSubcategory(null);
+  const handleSaveSubcategory = async () => {
+    try {
+      setLoading(true);
+      
+      // Make API call to update subcategory
+      // Note: This assumes your API has an endpoint for updating subcategories
+      // You may need to adjust this based on your actual API structure
+      await categoryService.updateCategory(editingSubcategory.categoryId, {
+        subcategory: {
+          id: editingSubcategory._id,
+          name: editingSubcategory.name,
+          slug: editingSubcategory.slug
+        }
+      });
+      
+      // Update local state
+      const updatedCategories = categories.map(category => 
+        category._id === editingSubcategory.categoryId 
+          ? {
+              ...category,
+              subcategories: category.subcategories.map(subcategory => 
+                subcategory._id === editingSubcategory._id ? editingSubcategory : subcategory
+              )
+            }
+          : category
+      );
+      
+      setCategories(updatedCategories);
+      setEditingSubcategory(null);
+      toast.success('Subcategory updated successfully');
+    } catch (err) {
+      console.error('Error updating subcategory:', err);
+      toast.error('Failed to update subcategory');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteCategory = (id) => {
-    setCategories(categories.filter(category => category.id !== id));
+  const handleDeleteCategory = async (id) => {
+    try {
+      setLoading(true);
+      // Make API call to delete category
+      await categoryService.deleteCategory(id);
+      
+      // Update local state
+      setCategories(categories.filter(category => category._id !== id));
+      toast.success('Category deleted successfully');
+    } catch (err) {
+      console.error('Error deleting category:', err);
+      toast.error('Failed to delete category');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeleteSubcategory = (categoryId, subcategoryId) => {
@@ -155,23 +178,73 @@ const SuperAdminCategories = () => {
     ));
   };
 
-  const handleAddNewCategory = () => {
-    const newId = Math.max(...categories.map(c => c.id)) + 1;
-    setCategories([...categories, {
-      ...newCategory,
-      id: newId,
-      products: 0,
-      subcategories: []
-    }]);
-    setNewCategory({
-      name: '',
-      slug: '',
-      description: '',
-      featured: false,
-      image: '',
-      subcategories: []
-    });
-    setShowNewCategoryForm(false);
+  const handleAddNewCategory = async () => {
+    try {
+      // Validate required fields
+      if (!newCategory.name) {
+        toast.error('Category name is required');
+        return;
+      }
+
+      setLoading(true);
+      
+      // Prepare category data
+      const categoryData = {
+        name: newCategory.name,
+        slug: newCategory.slug || newCategory.name.toLowerCase().replace(/\s+/g, '-'),
+        description: newCategory.description || '',
+        featured: newCategory.featured || false,
+        showInMenu: true,
+        isActive: true
+      };
+
+      // Add image if provided
+      if (newCategory.image) {
+        categoryData.image = newCategory.image;
+      }
+      
+      console.log('Creating category with data:', categoryData);
+      
+      // Make API call to create category
+      const response = await categoryService.createCategory(categoryData);
+      
+      console.log('Create category response:', response);
+      
+      // Get the created category from the response
+      let createdCategory;
+      if (response.success && response.data) {
+        createdCategory = response.data;
+      } else if (response.category) {
+        createdCategory = response.category;
+      } else {
+        createdCategory = response;
+      }
+      
+      // Add to categories array
+      setCategories([...categories, createdCategory]);
+      
+      // Reset form
+      setNewCategory({
+        name: '',
+        slug: '',
+        description: '',
+        featured: false,
+        image: ''
+      });
+      
+      setShowNewCategoryForm(false);
+      toast.success('Category created successfully');
+      
+      // Refresh the categories list
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err) {
+      console.error('Error creating category:', err);
+      toast.error(err.response?.data?.message || 'Failed to create category');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddNewSubcategory = (categoryId) => {
@@ -202,12 +275,34 @@ const SuperAdminCategories = () => {
     });
   };
 
-  const handleToggleFeatured = (id) => {
-    setCategories(categories.map(category => 
-      category.id === id 
-        ? { ...category, featured: !category.featured } 
-        : category
-    ));
+  const handleToggleFeatured = async (id) => {
+    try {
+      setLoading(true);
+      
+      // Find the category to toggle
+      const category = categories.find(cat => cat._id === id);
+      if (!category) return;
+      
+      // Make API call to update featured status
+      await categoryService.updateCategory(id, {
+        featured: !category.featured
+      });
+      
+      // Update local state
+      setCategories(categories.map(cat => {
+        if (cat._id === id) {
+          return { ...cat, featured: !cat.featured };
+        }
+        return cat;
+      }));
+      
+      toast.success(`Category ${!category.featured ? 'featured' : 'unfeatured'} successfully`);
+    } catch (err) {
+      console.error('Error toggling featured status:', err);
+      toast.error('Failed to update featured status');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Animation variants
@@ -239,6 +334,29 @@ const SuperAdminCategories = () => {
       variants={containerVariants}
       className="min-h-screen bg-[#0A0A0A] text-white p-6"
     >
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-[#121212] p-6 rounded-lg shadow-xl flex flex-col items-center">
+            <FiLoader size={40} className="text-[#D4AF37] animate-spin mb-4" />
+            <p className="text-white text-lg">Processing...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 bg-red-900 text-white p-4 rounded-lg">
+          <p>{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-2 px-4 py-2 bg-red-700 hover:bg-red-600 rounded-md transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>

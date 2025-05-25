@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Product = require('../models/product.model');
 const User = require('../models/user.model');
 const Category = require('../models/category.model');
@@ -160,6 +161,15 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     
     console.log(`Product created successfully with ID: ${product._id}`);
 
+    // Emit Socket.IO event for real-time updates
+    if (req.io) {
+      console.log('Emitting productCreated event with data:', JSON.stringify(product, null, 2));
+      req.io.emit('productCreated', product);
+      console.log('Emitted productCreated event');
+    } else {
+      console.warn('Socket.IO instance not available in request object. Real-time updates will not work.');
+    }
+
     res.status(201).json({
       success: true,
       data: product
@@ -262,6 +272,12 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
     runValidators: true
   });
 
+  // Emit Socket.IO event for real-time updates
+  if (req.io) {
+    req.io.emit('productUpdated', product);
+    console.log(`Emitted productUpdated event for product ID: ${product._id}`);
+  }
+
   res.status(200).json({
     success: true,
     data: product
@@ -301,7 +317,14 @@ exports.deleteProduct = asyncHandler(async (req, res, next) => {
     }
   }
 
+  const productId = product._id;
   await product.remove();
+
+  // Emit Socket.IO event for real-time updates
+  if (req.io) {
+    req.io.emit('productDeleted', productId);
+    console.log(`Emitted productDeleted event for product ID: ${productId}`);
+  }
 
   res.status(200).json({
     success: true,

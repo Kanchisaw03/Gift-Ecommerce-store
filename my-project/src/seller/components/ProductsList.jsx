@@ -3,100 +3,9 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import DataTable from '../../shared/components/DataTable';
 import { luxuryTheme } from '../../styles/luxuryTheme';
+import { getProducts, deleteProduct } from '../../services/api/productService';
+import { toast } from 'react-toastify';
 
-// Mock data for products
-const mockProducts = [
-  { 
-    id: 1, 
-    name: 'Luxury Watch', 
-    price: 1200, 
-    category: 'Watches', 
-    stock: 15, 
-    status: 'active',
-    image: '/assets/products/watch.jpg'
-  },
-  { 
-    id: 2, 
-    name: 'Gold Bracelet', 
-    price: 850, 
-    category: 'Jewelry', 
-    stock: 8, 
-    status: 'active',
-    image: '/assets/products/bracelet.jpg'
-  },
-  { 
-    id: 3, 
-    name: 'Diamond Earrings', 
-    price: 1500, 
-    category: 'Jewelry', 
-    stock: 5, 
-    status: 'active',
-    image: '/assets/products/earrings.jpg'
-  },
-  { 
-    id: 4, 
-    name: 'Silk Scarf', 
-    price: 120, 
-    category: 'Accessories', 
-    stock: 25, 
-    status: 'active',
-    image: '/assets/products/scarf.jpg'
-  },
-  { 
-    id: 5, 
-    name: 'Leather Wallet', 
-    price: 180, 
-    category: 'Leather Goods', 
-    stock: 12, 
-    status: 'active',
-    image: '/assets/products/wallet.jpg'
-  },
-  { 
-    id: 6, 
-    name: 'Luxury Perfume', 
-    price: 220, 
-    category: 'Fragrances', 
-    stock: 18, 
-    status: 'active',
-    image: '/assets/products/perfume.jpg'
-  },
-  { 
-    id: 7, 
-    name: 'Crystal Decanter', 
-    price: 350, 
-    category: 'Home Decor', 
-    stock: 7, 
-    status: 'active',
-    image: '/assets/products/decanter.jpg'
-  },
-  { 
-    id: 8, 
-    name: 'Cashmere Scarf', 
-    price: 160, 
-    category: 'Accessories', 
-    stock: 0, 
-    status: 'out_of_stock',
-    image: '/assets/products/cashmere.jpg'
-  },
-  { 
-    id: 9, 
-    name: 'Silver Cufflinks', 
-    price: 90, 
-    category: 'Accessories', 
-    stock: 20, 
-    status: 'active',
-    image: '/assets/products/cufflinks.jpg'
-  },
-  { 
-    id: 10, 
-    name: 'Fountain Pen', 
-    price: 75, 
-    category: 'Accessories', 
-    stock: 15, 
-    status: 'active',
-    image: '/assets/products/pen.jpg'
-  }
-];
 
 const ProductsList = ({ onEdit, onDelete }) => {
   const [products, setProducts] = useState([]);
@@ -104,29 +13,30 @@ const ProductsList = ({ onEdit, onDelete }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  // Simulate data fetching
+  // Fetch products from API
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchProductData = async () => {
       try {
-        // In a real app, you would fetch data from your API here
-        // const response = await fetch('/api/seller/products');
-        // const data = await response.json();
+        setIsLoading(true);
+        // Use the real API service to get products
+        const response = await getProducts({ seller: true });
         
-        // For now, we'll use mock data
-        setProducts(mockProducts);
+        if (response && response.data && response.data.products) {
+          setProducts(response.data.products);
+        } else {
+          console.error('Unexpected API response format:', response);
+          setProducts([]);
+        }
       } catch (error) {
         console.error('Error fetching products:', error);
+        toast.error('Failed to load products. Please try again later.');
+        setProducts([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    // Simulate API delay
-    const timer = setTimeout(() => {
-      fetchProducts();
-    }, 1000);
-
-    return () => clearTimeout(timer);
+    fetchProductData();
   }, []);
 
   // Format currency
@@ -154,17 +64,18 @@ const ProductsList = ({ onEdit, onDelete }) => {
   // Handle delete product
   const handleDelete = async () => {
     try {
-      // In a real app, you would call your API here
-      // await fetch(`/api/seller/products/${selectedProduct.id}`, {
-      //   method: 'DELETE'
-      // });
+      // Call the real API to delete the product
+      await deleteProduct(selectedProduct._id || selectedProduct.id);
       
-      // For now, we'll just update the local state
-      setProducts(products.filter(p => p.id !== selectedProduct.id));
+      // Update the local state
+      setProducts(products.filter(p => (p._id || p.id) !== (selectedProduct._id || selectedProduct.id)));
       
       // Close modal
       setIsDeleteModalOpen(false);
       setSelectedProduct(null);
+      
+      // Show success message
+      toast.success('Product deleted successfully');
       
       // Call the onDelete callback
       if (onDelete) {
