@@ -1,65 +1,54 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { luxuryTheme } from '../../styles/luxuryTheme';
+import axiosInstance from '../../services/api/axiosConfig';
+import { toast } from 'react-toastify';
+import { useAuth } from '../../hooks/useAuth';
 
 const OrderDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock data fetch
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      // Mock order data
-      const mockOrder = {
-        id: id,
-        date: '2025-05-15',
-        status: 'Delivered',
-        total: 1250.00,
-        subtotal: 1150.00,
-        tax: 50.00,
-        shipping: 50.00,
-        shippingAddress: {
-          name: 'Alexander Wilson',
-          street: '123 Luxury Lane',
-          city: 'Beverly Hills',
-          state: 'CA',
-          zip: '90210',
-          country: 'United States'
-        },
-        paymentMethod: 'Credit Card (ending in 4242)',
-        trackingNumber: 'TRK-8765432',
-        items: [
-          {
-            id: 'PROD-001',
-            name: 'Handcrafted Gold Watch',
-            price: 750.00,
-            quantity: 1,
-            image: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60'
-          },
-          {
-            id: 'PROD-002',
-            name: 'Premium Leather Wallet',
-            price: 200.00,
-            quantity: 2,
-            image: 'https://images.unsplash.com/photo-1517254797898-07c73c117e6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60'
-          }
-        ],
-        timeline: [
-          { status: 'Order Placed', date: '2025-05-15T09:30:00Z' },
-          { status: 'Payment Confirmed', date: '2025-05-15T09:35:00Z' },
-          { status: 'Processing', date: '2025-05-16T10:15:00Z' },
-          { status: 'Shipped', date: '2025-05-17T14:20:00Z' },
-          { status: 'Delivered', date: '2025-05-20T13:45:00Z' }
-        ]
-      };
+    const fetchOrderDetails = async () => {
+      if (!isAuthenticated) {
+        navigate('/login');
+        return;
+      }
       
-      setOrder(mockOrder);
-      setLoading(false);
-    }, 800);
-  }, [id]);
+      setLoading(true);
+      try {
+        const response = await axiosInstance.get(`/orders/${id}`);
+        console.log('Order details response:', response.data);
+        
+        if (response.data && response.data.success) {
+          setOrder(response.data.data);
+        } else {
+          setError('Failed to fetch order details');
+          toast.error('Failed to fetch order details');
+        }
+      } catch (err) {
+        console.error('Error fetching order details:', err);
+        setError(err.response?.data?.error || 'Failed to fetch order details');
+        toast.error('Failed to fetch order details');
+        
+        // If 404, redirect to orders page
+        if (err.response?.status === 404) {
+          toast.error('Order not found');
+          setTimeout(() => navigate('/orders'), 2000);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchOrderDetails();
+  }, [id, isAuthenticated, navigate]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -92,6 +81,48 @@ const OrderDetails = () => {
       </div>
     );
   }
+  
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-16 max-w-6xl">
+        <div className="bg-[#121212] rounded-lg shadow-xl p-8 text-center">
+          <h2 className="text-2xl font-playfair font-medium mb-4 text-red-400">Error</h2>
+          <p className="text-gray-400 mb-6">{error}</p>
+          <div className="flex justify-center space-x-4">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-[#D4AF37] text-black rounded-md hover:bg-[#C4A137] transition-colors"
+            >
+              Try Again
+            </button>
+            <Link
+              to="/orders"
+              className="px-4 py-2 border border-gray-600 rounded-md hover:bg-gray-800 transition-colors"
+            >
+              Back to Orders
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!order) {
+    return (
+      <div className="container mx-auto px-4 py-16 max-w-6xl">
+        <div className="bg-[#121212] rounded-lg shadow-xl p-8 text-center">
+          <h2 className="text-2xl font-playfair font-medium mb-4">Order Not Found</h2>
+          <p className="text-gray-400 mb-6">The order you're looking for doesn't exist or you don't have permission to view it.</p>
+          <Link
+            to="/orders"
+            className="px-4 py-2 bg-[#D4AF37] text-black rounded-md hover:bg-[#C4A137] transition-colors"
+          >
+            Back to Orders
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -102,12 +133,17 @@ const OrderDetails = () => {
       transition={{ duration: 0.5 }}
       className="container mx-auto px-4 py-8 max-w-6xl"
     >
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 pb-4 border-b border-gray-800">
         <div>
-          <h1 className="text-3xl font-playfair font-bold mb-2">Order #{order.id}</h1>
-          <p className="text-gray-400">
-            Placed on {new Date(order.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+          <h1 className="text-3xl font-playfair font-bold">Order #{order.orderNumber || order._id}</h1>
+          <p className="text-gray-400 mt-1">
+            Placed on {new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
+          <div className="mt-2">
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status.charAt(0).toUpperCase() + order.status.slice(1))}`}>
+              {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+            </span>
+          </div>
         </div>
         <div className="mt-4 md:mt-0 flex space-x-4">
           <Link
@@ -118,7 +154,7 @@ const OrderDetails = () => {
           </Link>
           {order.trackingNumber && (
             <Link
-              to={`/track/${order.id}`}
+              to={`/track-order/${order._id}`}
               className="px-4 py-2 bg-[#D4AF37] text-black rounded-md hover:bg-[#C4A137] transition-colors"
             >
               Track Order
@@ -135,15 +171,19 @@ const OrderDetails = () => {
               <h2 className="text-xl font-playfair font-semibold">Order Items</h2>
             </div>
             <div className="divide-y divide-gray-800">
-              {order.items.map((item) => (
-                <div key={item.id} className="p-6 flex flex-col sm:flex-row">
+              {order.items && order.items.map((item) => (
+                <div key={item._id || item.product?._id} className="p-6 flex flex-col sm:flex-row">
                   <div className="sm:w-24 h-24 rounded-md overflow-hidden mb-4 sm:mb-0 flex-shrink-0">
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    <img 
+                      src={item.product?.images?.[0] || 'https://via.placeholder.com/150'} 
+                      alt={item.product?.name || 'Product'} 
+                      className="w-full h-full object-cover" 
+                    />
                   </div>
                   <div className="sm:ml-6 flex-1">
                     <div className="flex flex-col sm:flex-row sm:justify-between">
-                      <h3 className="text-lg font-medium">{item.name}</h3>
-                      <p className="text-[#D4AF37] font-medium mt-1 sm:mt-0">${item.price.toFixed(2)}</p>
+                      <h3 className="text-lg font-medium">{item.product?.name || 'Product'}</h3>
+                      <p className="text-[#D4AF37] font-medium mt-1 sm:mt-0">${item.price?.toFixed(2) || '0.00'}</p>
                     </div>
                     <p className="text-gray-400 mt-1">Quantity: {item.quantity}</p>
                     <p className="text-gray-300 mt-2 font-medium">Subtotal: ${(item.price * item.quantity).toFixed(2)}</p>
@@ -154,37 +194,32 @@ const OrderDetails = () => {
           </div>
 
           {/* Order Timeline */}
-          <div className="bg-[#121212] rounded-lg shadow-xl overflow-hidden">
-            <div className="p-6 border-b border-gray-800">
-              <h2 className="text-xl font-playfair font-semibold">Order Timeline</h2>
-            </div>
-            <div className="p-6">
-              <div className="relative">
-                {order.timeline.map((event, index) => (
-                  <div key={index} className="mb-8 flex items-start last:mb-0">
-                    <div className="flex flex-col items-center mr-4">
-                      <div className="rounded-full h-4 w-4 bg-[#D4AF37] flex-shrink-0"></div>
-                      {index < order.timeline.length - 1 && (
-                        <div className="h-full w-0.5 bg-gray-700 mt-1"></div>
-                      )}
+          {order.timeline && order.timeline.length > 0 && (
+            <div className="bg-[#121212] rounded-lg shadow-xl overflow-hidden">
+              <div className="p-6 border-b border-gray-800">
+                <h2 className="text-xl font-playfair font-semibold">Order Timeline</h2>
+              </div>
+              <div className="p-6">
+                <div className="relative">
+                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-700" />
+                  {order.timeline.map((event, index) => (
+                    <div key={index} className="relative pl-10 pb-8 last:pb-0">
+                      <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-[#1A1A1A] border-2 border-[#D4AF37] flex items-center justify-center">
+                        <span className="text-xs font-bold text-[#D4AF37]">{index + 1}</span>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-medium">{event.status}</h3>
+                        <p className="text-gray-400 mt-1">
+                          {new Date(event.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        {event.description && <p className="text-gray-300 mt-1">{event.description}</p>}
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-medium">{event.status}</h3>
-                      <p className="text-gray-400 text-sm">
-                        {new Date(event.date).toLocaleString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="space-y-8">
@@ -194,28 +229,28 @@ const OrderDetails = () => {
               <h2 className="text-xl font-playfair font-semibold">Order Summary</h2>
             </div>
             <div className="p-6">
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Status</span>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                    {order.status}
-                  </span>
-                </div>
+              <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-400">Subtotal</span>
-                  <span>${order.subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Shipping</span>
-                  <span>${order.shipping.toFixed(2)}</span>
+                  <span>${order.subtotal?.toFixed(2) || '0.00'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Tax</span>
-                  <span>${order.tax.toFixed(2)}</span>
+                  <span>${order.tax?.toFixed(2) || '0.00'}</span>
                 </div>
-                <div className="border-t border-gray-700 pt-4 flex justify-between font-medium">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Shipping</span>
+                  <span>${order.shippingCost?.toFixed(2) || '0.00'}</span>
+                </div>
+                {order.discount > 0 && (
+                  <div className="flex justify-between text-green-400">
+                    <span>Discount</span>
+                    <span>-${order.discount?.toFixed(2) || '0.00'}</span>
+                  </div>
+                )}
+                <div className="pt-3 mt-3 border-t border-gray-800 flex justify-between font-medium">
                   <span>Total</span>
-                  <span className="text-[#D4AF37]">${order.total.toFixed(2)}</span>
+                  <span className="text-[#D4AF37]">${order.total?.toFixed(2) || '0.00'}</span>
                 </div>
               </div>
             </div>
@@ -227,18 +262,19 @@ const OrderDetails = () => {
               <h2 className="text-xl font-playfair font-semibold">Shipping Information</h2>
             </div>
             <div className="p-6">
-              <address className="not-italic text-gray-300 space-y-1">
-                <p>{order.shippingAddress.name}</p>
-                <p>{order.shippingAddress.street}</p>
-                <p>
-                  {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip}
-                </p>
-                <p>{order.shippingAddress.country}</p>
-              </address>
+              {order.shippingAddress && (
+                <div className="space-y-1">
+                  <p className="font-medium">{order.shippingAddress.name}</p>
+                  <p>{order.shippingAddress.street}</p>
+                  <p>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip}</p>
+                  <p>{order.shippingAddress.country}</p>
+                </div>
+              )}
               {order.trackingNumber && (
-                <div className="mt-4 pt-4 border-t border-gray-700">
+                <div className="mt-4 pt-4 border-t border-gray-800">
                   <p className="text-gray-400">Tracking Number</p>
-                  <p className="text-[#D4AF37] font-medium">{order.trackingNumber}</p>
+                  <p className="font-medium mt-1">{order.trackingNumber}</p>
+                  {order.carrier && <p className="text-gray-400 mt-2">Carrier: {order.carrier}</p>}
                 </div>
               )}
             </div>
@@ -250,7 +286,9 @@ const OrderDetails = () => {
               <h2 className="text-xl font-playfair font-semibold">Payment Information</h2>
             </div>
             <div className="p-6">
-              <p className="text-gray-300">{order.paymentMethod}</p>
+              {order.paymentInfo && (
+                <p>{order.paymentInfo.method} {order.paymentInfo.cardLast4 && `(ending in ${order.paymentInfo.cardLast4})`}</p>
+              )}
             </div>
           </div>
         </div>

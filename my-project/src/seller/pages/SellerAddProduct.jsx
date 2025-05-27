@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { luxuryTheme } from '../../styles/luxuryTheme';
 import DashboardLayout from '../../shared/components/DashboardLayout';
+import { createProduct, getCategories } from '../../services/api/productService';
+import { toast } from 'react-toastify';
 
 const SellerAddProduct = () => {
   const navigate = useNavigate();
@@ -20,17 +22,63 @@ const SellerAddProduct = () => {
   });
   const [errors, setErrors] = useState({});
   const [previewImages, setPreviewImages] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
-  const categories = [
-    'Accessories',
-    'Apparel',
-    'Home',
-    'Jewelry',
-    'Stationery',
-    'Tech',
-    'Wellness',
-    'Other'
-  ];
+  // Fetch categories from the backend
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const response = await getCategories();
+        
+        // Check if we got a valid response with categories
+        if (response && response.success && response.data && Array.isArray(response.data.data)) {
+          console.log('Categories fetched successfully:', response.data.data);
+          setCategories(response.data.data);
+        } else if (response && response.data && Array.isArray(response.data)) {
+          // Alternative response format
+          console.log('Categories fetched (alternative format):', response.data);
+          setCategories(response.data);
+        } else {
+          console.error('Failed to fetch categories or invalid format:', response);
+          toast.error('Failed to load categories. Please contact support.');
+          
+          // Create a temporary category for testing purposes only
+          // In a production environment, you would want to handle this differently
+          const tempCategoryId = '645a9f8b0c5d2a1f1c9f1234'; // This is a fake MongoDB ObjectId format for testing
+          setCategories([
+            { _id: tempCategoryId, name: 'Temporary Category' }
+          ]);
+          
+          // Set the form data to use this temporary category
+          setFormData(prev => ({
+            ...prev,
+            category: tempCategoryId
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        toast.error('Failed to load categories. Please contact support.');
+        
+        // Create a temporary category for testing purposes only
+        const tempCategoryId = '645a9f8b0c5d2a1f1c9f1234'; // This is a fake MongoDB ObjectId format for testing
+        setCategories([
+          { _id: tempCategoryId, name: 'Temporary Category' }
+        ]);
+        
+        // Set the form data to use this temporary category
+        setFormData(prev => ({
+          ...prev,
+          category: tempCategoryId
+        }));
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const shippingOptions = [
     '1-2',
@@ -69,15 +117,24 @@ const SellerAddProduct = () => {
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     
-    // In a real app, you'd upload these to a server
-    // For now, we'll just create local URLs for preview
+    // Create local URLs for preview and store the actual files for submission
     const newPreviewImages = files.map(file => URL.createObjectURL(file));
+    
+    console.log(`Adding ${files.length} new images`);
     
     setPreviewImages([...previewImages, ...newPreviewImages]);
     setFormData({
       ...formData,
       images: [...formData.images, ...files]
     });
+    
+    // Clear any image-related errors
+    if (errors.images) {
+      setErrors({
+        ...errors,
+        images: ''
+      });
+    }
   };
 
   const removeImage = (index) => {
@@ -139,17 +196,65 @@ const SellerAddProduct = () => {
     setIsSubmitting(true);
     
     try {
-      // In a real app, this would be an API call to save the product
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Prepare form data for API submission
+      const productFormData = new FormData();
+      
+      // Add text fields
+      productFormData.append('name', formData.name);
+      productFormData.append('description', formData.description);
+      productFormData.append('price', formData.price);
+      if (formData.salePrice) {
+        productFormData.append('salePrice', formData.salePrice);
+      }
+      
+      // Log the category ID for debugging
+      console.log('Category ID being sent:', formData.category);
+      productFormData.append('category', formData.category);
+      
+      productFormData.append('stock', formData.stock);
+      productFormData.append('shippingTime', formData.shippingTime);
+      
+      // Add tags if any
+      if (formData.tags) {
+        const tagsArray = formData.tags.split(',').map(tag => tag.trim());
+        productFormData.append('tags', JSON.stringify(tagsArray));
+      }
+      
+      // Add images
+      if (formData.images.length > 0) {
+        console.log(`Adding ${formData.images.length} images to FormData`);
+        formData.images.forEach((image, index) => {
+          console.log(`Adding image ${index + 1}:`, image.name);
+          productFormData.append('images', image);
+        });
+      } else {
+        console.warn('No images to upload');
+      }
+      
+      console.log('Submitting product data to API');
+      
+      // Call the real API to create the product
+      const response = await createProduct(productFormData);
+      
+      console.log('Product created successfully:', response);
+      toast.success('Product added successfully!');
       
       // Success! Redirect to products page
       navigate('/seller/products');
     } catch (error) {
       console.error('Error adding product:', error);
+      
+      // More detailed error logging
+      if (error.response) {
+        console.error('Error response:', error.response);
+        console.error('Error status:', error.response.status);
+        console.error('Error data:', error.response.data);
+      }
+      
+      toast.error(`Failed to add product: ${error.message || 'Unknown error'}`);
       setErrors({
         ...errors,
-        submit: 'Failed to add product. Please try again.'
+        submit: error.message || 'Failed to add product. Please try again.'
       });
     } finally {
       setIsSubmitting(false);
@@ -247,12 +352,17 @@ const SellerAddProduct = () => {
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
+                  disabled={loadingCategories}
                   className={`w-full bg-[#1E1E1E] border ${errors.category ? 'border-red-500' : 'border-gray-700'} rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]`}
                 >
                   <option value="">Select Category</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
+                  {loadingCategories ? (
+                    <option value="" disabled>Loading categories...</option>
+                  ) : (
+                    categories.map((category) => (
+                      <option key={category._id} value={category._id}>{category.name}</option>
+                    ))
+                  )}
                 </select>
                 {errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
               </div>

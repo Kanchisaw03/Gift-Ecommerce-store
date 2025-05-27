@@ -154,3 +154,62 @@ export const updateSellerPayoutSettings = async (payoutSettingsData) => {
     throw error.response?.data || { message: 'Failed to update payout settings' };
   }
 };
+
+/**
+ * Create Razorpay order
+ * @param {Object} orderData - Order data (orderId, amount, currency)
+ * @returns {Promise} - Response from API with Razorpay order details
+ */
+export const createRazorpayOrder = async (orderData) => {
+  try {
+    console.log('Creating Razorpay order:', orderData);
+    // Use the correct endpoint as defined in the backend routes
+    const response = await axiosInstance.post('/payments/create-order', orderData);
+    console.log('Razorpay order created:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to create Razorpay order:', error);
+    throw error.response?.data || { message: 'Failed to create Razorpay order' };
+  }
+};
+
+/**
+ * Verify Razorpay payment
+ * @param {Object} paymentData - Payment data (razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId)
+ * @returns {Promise} - Response from API with payment verification
+ */
+export const verifyRazorpayPayment = async (paymentData) => {
+  try {
+    const response = await axiosInstance.post('/payment/verify', paymentData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to verify Razorpay payment' };
+  }
+};
+
+/**
+ * Get Razorpay payment details
+ * @param {string} paymentId - Payment ID
+ * @returns {Promise} - Response from API with payment details
+ */
+export const getRazorpayPayment = async (paymentId) => {
+  try {
+    const response = await axiosInstance.get(`/payment/${paymentId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to get Razorpay payment details' };
+  }
+};
+
+/**
+ * Get Razorpay payment history
+ * @returns {Promise} - Response from API with payment history
+ */
+export const getRazorpayPaymentHistory = async () => {
+  try {
+    const response = await axiosInstance.get('/payment/history');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to get Razorpay payment history' };
+  }
+};

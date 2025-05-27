@@ -479,7 +479,7 @@ export default function Product() {
                 <ul className="list-disc pl-5 space-y-2 text-gray-300" style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}>
                   <li>Premium quality materials</li>
                   <li>Beautifully packaged</li>
-                  <li>Perfect for {product?.category.toLowerCase()} occasions</li>
+                  <li>Perfect for {product?.category ? product.category.toLowerCase() : 'special'} occasions</li>
                   <li>Satisfaction guaranteed</li>
                 </ul>
               </div>

@@ -1,4 +1,4 @@
-import axiosInstance from './axiosConfig';
+import axiosInstance, { axiosPublic } from './axiosConfig';
 
 /**
  * Get cart items
@@ -9,7 +9,19 @@ export const getCart = async () => {
     const response = await axiosInstance.get('/cart');
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to fetch cart' };
+    console.error('Error fetching cart:', error);
+    
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
+    
+    // Return a structured error response
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to fetch cart',
+      status: error.response?.status
+    };
   }
 };
 
@@ -20,10 +32,27 @@ export const getCart = async () => {
  */
 export const addToCart = async (cartItem) => {
   try {
+    // Validate input
+    if (!cartItem || !cartItem.productId) {
+      return { success: false, message: 'Invalid product information' };
+    }
+    
     const response = await axiosInstance.post('/cart', cartItem);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to add item to cart' };
+    console.error('Error adding item to cart:', error);
+    
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
+    
+    // Return a structured error response
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to add item to cart',
+      status: error.response?.status
+    };
   }
 };
 
@@ -35,10 +64,31 @@ export const addToCart = async (cartItem) => {
  */
 export const updateCartItem = async (itemId, updateData) => {
   try {
+    // Validate input
+    if (!itemId) {
+      return { success: false, message: 'Invalid item ID' };
+    }
+    
+    if (!updateData || typeof updateData.quantity !== 'number' || updateData.quantity < 1) {
+      return { success: false, message: 'Invalid quantity. Must be a positive number.' };
+    }
+    
     const response = await axiosInstance.put(`/cart/${itemId}`, updateData);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to update cart item' };
+    console.error('Error updating cart item:', error);
+    
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
+    
+    // Return a structured error response
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to update cart item',
+      status: error.response?.status
+    };
   }
 };
 
@@ -49,10 +99,27 @@ export const updateCartItem = async (itemId, updateData) => {
  */
 export const removeFromCart = async (itemId) => {
   try {
+    // Validate input
+    if (!itemId) {
+      return { success: false, message: 'Invalid item ID' };
+    }
+    
     const response = await axiosInstance.delete(`/cart/${itemId}`);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to remove item from cart' };
+    console.error('Error removing item from cart:', error);
+    
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
+    
+    // Return a structured error response
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to remove item from cart',
+      status: error.response?.status
+    };
   }
 };
 
@@ -65,7 +132,19 @@ export const clearCart = async () => {
     const response = await axiosInstance.delete('/cart');
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to clear cart' };
+    console.error('Error clearing cart:', error);
+    
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
+    
+    // Return a structured error response
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to clear cart',
+      status: error.response?.status
+    };
   }
 };
 
@@ -76,10 +155,44 @@ export const clearCart = async () => {
  */
 export const applyCoupon = async (couponData) => {
   try {
+    // Validate input
+    if (!couponData || !couponData.code) {
+      return { success: false, message: 'Invalid coupon code' };
+    }
+    
     const response = await axiosInstance.post('/cart/apply-coupon', couponData);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to apply coupon' };
+    console.error('Error applying coupon:', error);
+    
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
+    
+    // Special handling for common coupon errors
+    if (error.response?.status === 400) {
+      return { 
+        success: false, 
+        message: error.response?.data?.message || 'Invalid coupon code',
+        status: 400
+      };
+    }
+    
+    if (error.response?.status === 404) {
+      return { 
+        success: false, 
+        message: 'Coupon not found',
+        status: 404
+      };
+    }
+    
+    // Return a structured error response
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to apply coupon',
+      status: error.response?.status
+    };
   }
 };
 
@@ -92,7 +205,19 @@ export const removeCoupon = async () => {
     const response = await axiosInstance.delete('/cart/remove-coupon');
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to remove coupon' };
+    console.error('Error removing coupon:', error);
+    
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
+    
+    // Return a structured error response
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to remove coupon',
+      status: error.response?.status
+    };
   }
 };
 
@@ -102,10 +227,23 @@ export const removeCoupon = async () => {
  */
 export const getShippingMethods = async () => {
   try {
-    const response = await axiosInstance.get('/cart/shipping-methods');
+    // Use axiosPublic since this is public information that doesn't require authentication
+    const response = await axiosPublic.get('/cart/shipping-methods');
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to fetch shipping methods' };
+    console.error('Error fetching shipping methods:', error);
+    
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
+    
+    // Return a structured error response
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to fetch shipping methods',
+      status: error.response?.status
+    };
   }
 };
 
@@ -116,10 +254,44 @@ export const getShippingMethods = async () => {
  */
 export const setShippingMethod = async (shippingData) => {
   try {
+    // Validate input
+    if (!shippingData || !shippingData.methodId) {
+      return { success: false, message: 'Invalid shipping method data' };
+    }
+    
     const response = await axiosInstance.post('/cart/shipping-method', shippingData);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to set shipping method' };
+    console.error('Error setting shipping method:', error);
+    
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
+    
+    // Special handling for common shipping method errors
+    if (error.response?.status === 400) {
+      return { 
+        success: false, 
+        message: error.response?.data?.message || 'Invalid shipping method',
+        status: 400
+      };
+    }
+    
+    if (error.response?.status === 404) {
+      return { 
+        success: false, 
+        message: 'Shipping method not found',
+        status: 404
+      };
+    }
+    
+    // Return a structured error response
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to set shipping method',
+      status: error.response?.status
+    };
   }
 };
 
@@ -132,7 +304,19 @@ export const calculateCartTotals = async () => {
     const response = await axiosInstance.get('/cart/calculate');
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to calculate cart totals' };
+    console.error('Error calculating cart totals:', error);
+    
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
+    
+    // Return a structured error response
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to calculate cart totals',
+      status: error.response?.status
+    };
   }
 };
 
@@ -143,9 +327,56 @@ export const calculateCartTotals = async () => {
  */
 export const syncCart = async (cartItems) => {
   try {
+    // Validate input
+    if (!Array.isArray(cartItems)) {
+      return { 
+        success: false, 
+        message: 'Invalid cart items format. Expected an array.' 
+      };
+    }
+    
+    // If cart is empty, return success immediately
+    if (cartItems.length === 0) {
+      return { 
+        success: true, 
+        message: 'Cart is empty, nothing to sync.', 
+        data: { items: [] } 
+      };
+    }
+    
     const response = await axiosInstance.post('/cart/sync', { items: cartItems });
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to sync cart' };
+    console.error('Error syncing cart:', error);
+    
+    // Improved error handling
+    if (!error.response) {
+      return { 
+        success: false, 
+        message: 'Network error. Please check your connection.',
+        // Return the original cart items so the UI can still display them
+        data: { items: cartItems }
+      };
+    }
+    
+    // Special handling for authentication errors
+    if (error.response?.status === 401) {
+      return { 
+        success: false, 
+        message: 'You must be logged in to sync your cart.',
+        status: 401,
+        // Return the original cart items so the UI can still display them
+        data: { items: cartItems }
+      };
+    }
+    
+    // Return a structured error response
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to sync cart',
+      status: error.response?.status,
+      // Return the original cart items so the UI can still display them
+      data: { items: cartItems }
+    };
   }
 };

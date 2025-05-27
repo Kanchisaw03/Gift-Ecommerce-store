@@ -3,7 +3,11 @@ const {
   createPaymentIntent,
   processWebhook,
   getPaymentStatus,
-  createRefund
+  createRefund,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+  getRazorpayPayment,
+  getPaymentHistory
 } = require('../controllers/payment.controller');
 
 const router = express.Router();
@@ -23,5 +27,18 @@ router.route('/:paymentId/status')
 
 router.route('/:paymentId/refund')
   .post(protect, authorize('admin', 'super_admin', 'seller'), createRefund);
+
+// Razorpay routes
+router.route('/create-order')
+  .post(protect, createRazorpayOrder);
+
+router.route('/verify')
+  .post(protect, verifyRazorpayPayment);
+
+router.route('/history')
+  .get(protect, getPaymentHistory);
+
+router.route('/:paymentId')
+  .get(protect, getRazorpayPayment);
 
 module.exports = router;

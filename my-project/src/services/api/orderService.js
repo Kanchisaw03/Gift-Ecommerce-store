@@ -7,23 +7,54 @@ import axiosInstance from './axiosConfig';
  */
 export const createOrder = async (orderData) => {
   try {
-    const response = await axiosInstance.post('/orders', orderData);
+    console.log('Creating order with data:', JSON.stringify(orderData, null, 2));
+    
+    // Process order items to ensure valid MongoDB ObjectIds
+    const processedOrderData = {
+      ...orderData,
+      items: orderData.items.map(item => ({
+        ...item,
+        // Ensure seller is a string, not an object
+        seller: typeof item.seller === 'string' ? item.seller : '645e2d90675225374f91a05d'
+      }))
+    };
+    
+    const response = await axiosInstance.post('/orders', processedOrderData);
+    console.log('Order creation response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('Order creation error:', error.response?.data || error.message);
     throw error.response?.data || { message: 'Failed to create order' };
   }
 };
 
 /**
- * Get user orders
+ * Get user orders (for buyers)
  * @param {Object} params - Query parameters (page, limit, status)
  * @returns {Promise} - Response from API
  */
 export const getUserOrders = async (params = {}) => {
   try {
-    const response = await axiosInstance.get('/orders', { params });
-    return response.data;
+    console.log('Attempting to fetch user orders with params:', params);
+    
+    // Try multiple endpoints with detailed error logging
+    try {
+      console.log('Trying /orders/user endpoint');
+      const response = await axiosInstance.get('/orders/user', { params });
+      console.log('User orders response from /orders/user:', response.data);
+      return response.data;
+    } catch (err) {
+      console.error('Error fetching from /orders/user:', err);
+      console.log('Error details:', err.response?.status, err.response?.statusText);
+      console.log('Trying fallback to /orders/my-orders endpoint');
+      
+      // Try the fallback endpoint
+      const fallbackResponse = await axiosInstance.get('/orders/my-orders', { params });
+      console.log('User orders response from /orders/my-orders:', fallbackResponse.data);
+      return fallbackResponse.data;
+    }
   } catch (error) {
+    console.error('Failed to fetch user orders:', error);
     throw error.response?.data || { message: 'Failed to fetch orders' };
   }
 };
@@ -33,12 +64,127 @@ export const getUserOrders = async (params = {}) => {
  * @param {string} orderId - Order ID
  * @returns {Promise} - Response from API
  */
-export const getOrderDetails = async (orderId) => {
+export const getOrderById = async (orderId) => {
   try {
+    console.log(`Fetching order details for ID: ${orderId}`);
     const response = await axiosInstance.get(`/orders/${orderId}`);
+    console.log('Order details response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('Failed to fetch order details:', error);
     throw error.response?.data || { message: 'Failed to fetch order details' };
+  }
+};
+
+// Alias for backward compatibility
+export const getOrderDetails = getOrderById;
+
+/**
+ * Get seller orders
+ * @param {Object} params - Query parameters (page, limit, status)
+ * @returns {Promise} - Response from API
+ */
+export const getSellerOrders = async (params = {}) => {
+  try {
+    console.log('Fetching seller orders with params:', params);
+    const response = await axiosInstance.get('/seller/orders', { params });
+    console.log('Seller orders response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch seller orders:', error);
+    throw error.response?.data || { message: 'Failed to fetch seller orders' };
+  }
+};
+
+/**
+ * Get admin orders
+ * @param {Object} params - Query parameters (page, limit, status)
+ * @returns {Promise} - Response from API
+ */
+export const getAdminOrders = async (params = {}) => {
+  try {
+    console.log('Fetching admin orders with params:', params);
+    const response = await axiosInstance.get('/admin/orders', { params });
+    console.log('Admin orders response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch admin orders:', error);
+    throw error.response?.data || { message: 'Failed to fetch admin orders' };
+  }
+};
+
+/**
+ * Get super admin orders
+ * @param {Object} params - Query parameters (page, limit, status)
+ * @returns {Promise} - Response from API
+ */
+export const getSuperAdminOrders = async (params = {}) => {
+  try {
+    console.log('Fetching super admin orders with params:', params);
+    const response = await axiosInstance.get('/super-admin/orders', { params });
+    console.log('Super admin orders response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch super admin orders:', error);
+    throw error.response?.data || { message: 'Failed to fetch super admin orders' };
+  }
+};
+
+/**
+ * Update order status
+ * @param {string} orderId - Order ID
+ * @param {Object} statusData - Status data (status, notes)
+ * @param {string} userRole - User role (seller, admin, super_admin)
+ * @returns {Promise} - Response from API
+ */
+export const updateOrderStatus = async (orderId, statusData, userRole = 'admin') => {
+  try {
+    let endpoint = `/orders/${orderId}/status`;
+    
+    // Use the appropriate endpoint based on user role
+    if (userRole === 'seller') {
+      endpoint = `/seller/orders/${orderId}/status`;
+    } else if (userRole === 'admin') {
+      endpoint = `/admin/orders/${orderId}/status`;
+    } else if (userRole === 'super_admin') {
+      endpoint = `/super-admin/orders/${orderId}/status`;
+    }
+    
+    console.log(`Updating order status for ${orderId} as ${userRole}:`, statusData);
+    const response = await axiosInstance.put(endpoint, statusData);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to update order status:', error);
+    throw error.response?.data || { message: 'Failed to update order status' };
+  }
+};
+
+/**
+ * Add tracking information to an order
+ * @param {string} orderId - Order ID
+ * @param {Object} trackingData - Tracking data (trackingNumber, carrier, estimatedDelivery)
+ * @param {string} userRole - User role (seller, admin, super_admin)
+ * @returns {Promise} - Response from API
+ */
+export const addOrderTracking = async (orderId, trackingData, userRole = 'admin') => {
+  try {
+    let endpoint = `/orders/${orderId}/tracking`;
+    
+    // Use the appropriate endpoint based on user role
+    if (userRole === 'seller') {
+      endpoint = `/seller/orders/${orderId}/tracking`;
+    } else if (userRole === 'admin') {
+      endpoint = `/admin/orders/${orderId}/tracking`;
+    } else if (userRole === 'super_admin') {
+      endpoint = `/super-admin/orders/${orderId}/tracking`;
+    }
+    
+    console.log(`Adding tracking info for ${orderId} as ${userRole}:`, trackingData);
+    const response = await axiosInstance.put(endpoint, trackingData);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to add tracking information:', error);
+    throw error.response?.data || { message: 'Failed to add tracking information' };
   }
 };
 
@@ -50,9 +196,12 @@ export const getOrderDetails = async (orderId) => {
  */
 export const cancelOrder = async (orderId, cancelData) => {
   try {
-    const response = await axiosInstance.put(`/orders/${orderId}/cancel`, cancelData);
+    console.log(`Cancelling order ${orderId} with data:`, cancelData);
+    const response = await axiosInstance.put(`/api/orders/${orderId}/cancel`, cancelData);
+    console.log('Cancel order response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('Failed to cancel order:', error);
     throw error.response?.data || { message: 'Failed to cancel order' };
   }
 };
@@ -64,9 +213,12 @@ export const cancelOrder = async (orderId, cancelData) => {
  */
 export const createPaymentIntent = async (orderId) => {
   try {
-    const response = await axiosInstance.post(`/payments/create-payment-intent/${orderId}`);
+    console.log(`Creating payment intent for order: ${orderId}`);
+    const response = await axiosInstance.post(`/api/payments/create-payment-intent/${orderId}`);
+    console.log('Payment intent response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('Failed to create payment intent:', error);
     throw error.response?.data || { message: 'Failed to create payment intent' };
   }
 };
@@ -89,7 +241,7 @@ export const confirmPayment = async (orderId, paymentData) => {
 /**
  * Get order tracking information
  * @param {string} orderId - Order ID
- * @returns {Promise} - Response from API
+ * @returns {Promise} - Response from API with tracking information
  */
 export const getOrderTracking = async (orderId) => {
   try {
@@ -99,6 +251,36 @@ export const getOrderTracking = async (orderId) => {
     throw error.response?.data || { message: 'Failed to fetch tracking information' };
   }
 };
+
+/**
+ * Create Razorpay order
+ * @param {Object} orderData - Order data for Razorpay
+ * @returns {Promise} - Response from API with Razorpay order details
+ */
+export const createRazorpayOrder = async (orderData) => {
+  try {
+    const response = await axiosInstance.post('/payments/razorpay', orderData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to create Razorpay order' };
+  }
+};
+
+/**
+ * Verify Razorpay payment
+ * @param {Object} paymentData - Payment verification data
+ * @returns {Promise} - Response from API with verification result
+ */
+export const verifyRazorpayPayment = async (paymentData) => {
+  try {
+    const response = await axiosInstance.post('/payments/razorpay/verify', paymentData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to verify payment' };
+  }
+};
+
+
 
 /**
  * Request order return
@@ -152,29 +334,6 @@ export const getOrderReceipt = async (orderId) => {
  * @param {Object} params - Query parameters (page, limit, status)
  * @returns {Promise} - Response from API
  */
-export const getSellerOrders = async (params = {}) => {
-  try {
-    const response = await axiosInstance.get('/seller/orders', { params });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: 'Failed to fetch seller orders' };
-  }
-};
-
-/**
- * Update order status
- * @param {string} orderId - Order ID
- * @param {Object} statusData - Status update data (status, notes)
- * @returns {Promise} - Response from API
- */
-export const updateOrderStatus = async (orderId, statusData) => {
-  try {
-    const response = await axiosInstance.put(`/orders/${orderId}/status`, statusData);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: 'Failed to update order status' };
-  }
-};
 
 /**
  * Get all orders (admin only)

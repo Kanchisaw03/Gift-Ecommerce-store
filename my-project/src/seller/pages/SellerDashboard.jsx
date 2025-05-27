@@ -273,18 +273,18 @@ const SellerDashboard = () => {
                   </thead>
                   <tbody className="divide-y divide-gold/10">
                     {recentOrders.map((order) => (
-                      <tr key={order._id || order.id} className="hover:bg-neutral-700/30 transition-colors">
+                      <tr key={order._id} className="hover:bg-neutral-700/30 transition-colors">
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
-                          #{order._id?.substring(0, 8) || order.id}
+                          #{order.orderNumber || order._id.substring(0, 8)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-white">
-                          {order.customer?.name || order.customer}
+                          {order.user?.name || 'Customer'}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {new Date(order.createdAt || order.date).toLocaleDateString()}
+                          {new Date(order.createdAt).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-white">
-                          {formatCurrency(order.totalAmount || order.total)}
+                          {formatCurrency(order.sellerTotal || order.total)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm">
                           <span className={`${getStatusColor(order.status)} capitalize`}>
@@ -293,6 +293,7 @@ const SellerDashboard = () => {
                         </td>
                       </tr>
                     ))}
+
                   </tbody>
                 </table>
               </div>

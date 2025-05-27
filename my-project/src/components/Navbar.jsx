@@ -3,7 +3,9 @@ import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useCart } from "../hooks/useCart";
 import { useAuth } from "../hooks/useAuth";
+import { useWishlist } from "../context/WishlistContext";
 import { luxuryTheme } from "../styles/luxuryTheme";
+import NotificationBell from "./NotificationBell";
 
 export default function Navbar({ toggleCart }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,6 +14,7 @@ export default function Navbar({ toggleCart }) {
   const profileMenuRef = useRef(null);
   const { total } = useCart();
   const { user, isAuthenticated, logout } = useAuth();
+  const { wishlistCount } = useWishlist();
   const location = useLocation();
 
   // Close mobile menu and profile menu when route changes
@@ -50,10 +53,11 @@ export default function Navbar({ toggleCart }) {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
-        ? "glass-dark border-b border-gold/20 py-2"
-        : "bg-transparent py-4"
-        }`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? "glass-dark border-b border-gold/20 py-2"
+          : "bg-transparent py-4"
+      }`}
       style={{
         backdropFilter: 'blur(8px)',
         backgroundColor: scrolled ? 'rgba(10, 10, 10, 0.85)' : 'rgba(10, 10, 10, 0.5)'
@@ -69,7 +73,7 @@ export default function Navbar({ toggleCart }) {
             className="text-2xl md:text-3xl font-bold"
             style={{ fontFamily: luxuryTheme.typography.fontFamily.heading }}
           >
-            <span className="text-gradient-gold">GiftExpress</span>
+            <span className="text-gradient-gold">GiftNest</span>
           </motion.div>
         </Link>
 
@@ -105,7 +109,7 @@ export default function Navbar({ toggleCart }) {
                 )}
                 {user?.role === 'super_admin' && (
                   <Link to="/admin/super" className="block px-4 py-2 text-sm text-white hover:bg-gold/10 hover:text-gold">
-                    Super Admin Dashboard
+                    Super Admin
                   </Link>
                 )}
                 {user?.role === 'seller' && (
@@ -116,7 +120,13 @@ export default function Navbar({ toggleCart }) {
                 <Link to="/profile" className="block px-4 py-2 text-sm text-white hover:bg-gold/10 hover:text-gold">
                   Profile
                 </Link>
-                <button 
+                <Link to="/orders" className="block px-4 py-2 text-sm text-white hover:bg-gold/10 hover:text-gold">
+                  Orders
+                </Link>
+                <Link to="/notifications" className="block px-4 py-2 text-sm text-white hover:bg-gold/10 hover:text-gold">
+                  Notifications
+                </Link>
+                <button
                   onClick={() => {
                     setProfileMenuOpen(false);
                     logout();
@@ -138,7 +148,7 @@ export default function Navbar({ toggleCart }) {
               </Link>
               <Link 
                 to="/signup"
-                className="text-white bg-gold/10 border border-gold/30 hover:bg-gold/20 px-3 py-1 transition-all duration-300"
+                className="bg-gold/20 border border-gold/30 px-3 py-1 text-gold hover:bg-gold/30 transition-all duration-300"
                 style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
               >
                 <span className="text-xs uppercase tracking-wider font-medium">Sign Up</span>
@@ -146,10 +156,36 @@ export default function Navbar({ toggleCart }) {
             </div>
           )}
           
-          {/* Cart Icon */}
+          {/* Notification Bell - Only show for authenticated users */}
+          {isAuthenticated && (
+            <NotificationBell />
+          )}
+          
+          {/* Wishlist Icon */}
+          <Link
+            to="/wishlist"
+            className="relative p-2 text-white hover:text-gold transition-all duration-300 mr-1"
+            aria-label="View wishlist"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+            {wishlistCount > 0 && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-500 to-yellow-300 text-black text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center shadow-gold"
+                style={{ boxShadow: '0 0 10px rgba(212, 175, 55, 0.5)' }}
+              >
+                {wishlistCount}
+              </motion.span>
+            )}
+          </Link>
+          
+          {/* Cart Button */}
           <button
             onClick={toggleCart}
-            className="relative p-2 text-white hover:text-gold transition-all duration-300 group"
+            className="relative text-white hover:text-gold transition-all duration-300 group"
             aria-label="Open cart"
             style={{ 
               background: 'rgba(212, 175, 55, 0.05)',
@@ -207,32 +243,47 @@ export default function Navbar({ toggleCart }) {
             )}
           </button>
           
+          {/* Mobile Notification Bell */}
+          {isAuthenticated && (
+            <NotificationBell />
+          )}
+          
+          <Link
+            to="/wishlist"
+            className="relative p-2 text-white hover:text-gold transition-all duration-300"
+            aria-label="View wishlist"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+            {wishlistCount > 0 && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-500 to-yellow-300 text-black text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center shadow-gold"
+                style={{ boxShadow: '0 0 10px rgba(212, 175, 55, 0.5)' }}
+              >
+                {wishlistCount}
+              </motion.span>
+            )}
+          </Link>
+          
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="p-2 text-white hover:text-gold transition-colors"
+            className="text-white hover:text-gold p-2 transition-colors duration-300"
             aria-label={isOpen ? "Close menu" : "Open menu"}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="h-6 w-6" 
+              fill="none" 
+              viewBox="0 0 24 24" 
               stroke="currentColor"
             >
               {isOpen ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
               ) : (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
               )}
             </svg>
           </button>
@@ -255,6 +306,7 @@ export default function Navbar({ toggleCart }) {
           <div className="container mx-auto px-4 py-3 flex flex-col space-y-3">
             <MobileNavLink to="/" label="Home" />
             <MobileNavLink to="/products" label="Shop" />
+            <MobileNavLink to="/wishlist" label="Wishlist" />
             <MobileNavLink to="/about" label="About" />
             <MobileNavLink to="/contact" label="Contact" />
             {isAuthenticated ? (
@@ -263,6 +315,7 @@ export default function Navbar({ toggleCart }) {
                 {user?.role === 'super_admin' && <MobileNavLink to="/admin/super" label="Super Admin" />}
                 {user?.role === 'seller' && <MobileNavLink to="/seller" label="Seller Dashboard" />}
                 <MobileNavLink to="/profile" label="Profile" />
+                <MobileNavLink to="/notifications" label="Notifications" />
                 <button 
                   onClick={logout}
                   className="text-left py-2 text-white hover:text-gold transition-colors"

@@ -197,21 +197,74 @@ export const CartProvider = ({ children }) => {
     if (isAuthenticated) {
       // For logged-in users, use the API
       setLoading(true);
+      setError(null);
       try {
+        const productId = product._id || product.id;
+        
+        // Check if product is already in cart to update quantity instead of adding
+        const existingItem = cartItems.find(item => (item._id || item.id) === productId);
+        
         const response = await addToCartApi({
-          productId: product._id || product.id,
-          quantity
+          productId,
+          quantity: existingItem ? quantity + existingItem.quantity : quantity
         });
         
         if (response && response.success && response.data) {
           setCartItems(response.data.items || []);
           toast.success("Item added to cart");
+        } else if (response && response.success === false) {
+          // Handle specific API error responses
+          console.warn('API returned success: false when adding to cart:', response.message);
+          throw new Error(response.message || "Failed to add item to cart");
         } else {
           throw new Error("Failed to add item to cart");
         }
       } catch (err) {
         console.error("Error adding to cart:", err);
-        const errorMessage = err.response?.data?.message || err.message || "Failed to add item to cart";
+        
+        // Improved error handling for different types of errors
+        let errorMessage;
+        
+        if (err.message === 'Network Error' || !err.response) {
+          errorMessage = 'Unable to connect to the server. Please check your internet connection.';
+          setError(errorMessage);
+          
+          // Fallback to local cart for network errors
+          setCartItems((prev) => {
+            const productId = product._id || product.id;
+            const exists = prev.find((item) => (item._id || item.id) === productId);
+            
+            if (exists) {
+              return prev.map((item) =>
+                (item._id || item.id) === productId
+                  ? { ...item, quantity: item.quantity + quantity }
+                  : item
+              );
+            } else {
+              return [...prev, { ...product, quantity }];
+            }
+          });
+          
+          // Save to localStorage as fallback
+          setTimeout(() => {
+            localStorage.setItem("cart", JSON.stringify(cartItems));
+          }, 0);
+          
+          toast.warning("Added to local cart. Will sync when connection is restored.");
+          return;
+        } else if (err.response?.status === 401) {
+          errorMessage = 'Your session has expired. Please log in again.';
+        } else if (err.response?.status === 403) {
+          errorMessage = 'You do not have permission to add items to cart.';
+        } else if (err.response?.status === 404) {
+          errorMessage = 'Product not found or no longer available.';
+        } else if (err.response?.status === 400) {
+          errorMessage = err.response?.data?.message || 'Invalid request. Please try again with correct information.';
+        } else {
+          errorMessage = err.response?.data?.message || err.message || "Failed to add item to cart";
+        }
+        
+        setError(errorMessage);
         toast.error(errorMessage);
       } finally {
         setLoading(false);
@@ -262,17 +315,56 @@ export const CartProvider = ({ children }) => {
     if (isAuthenticated) {
       // For logged-in users, use the API
       setLoading(true);
+      setError(null);
       try {
         const response = await updateCartItemApi(itemId, { quantity });
         if (response && response.success && response.data) {
           setCartItems(response.data.items || []);
           toast.success("Cart updated");
+        } else if (response && response.success === false) {
+          // Handle specific API error responses
+          console.warn('API returned success: false when updating cart:', response.message);
+          throw new Error(response.message || "Failed to update cart");
         } else {
           throw new Error("Failed to update cart");
         }
       } catch (err) {
         console.error("Error updating cart item:", err);
-        const errorMessage = err.response?.data?.message || err.message || "Failed to update cart item";
+        
+        // Improved error handling for different types of errors
+        let errorMessage;
+        
+        if (err.message === 'Network Error' || !err.response) {
+          errorMessage = 'Unable to connect to the server. Please check your internet connection.';
+          setError(errorMessage);
+          
+          // Update local state as fallback for network errors
+          setCartItems((prev) =>
+            prev.map((item) =>
+              (item._id || item.id) === itemId ? { ...item, quantity } : item
+            )
+          );
+          
+          // Save to localStorage as fallback
+          setTimeout(() => {
+            localStorage.setItem("cart", JSON.stringify(cartItems));
+          }, 0);
+          
+          toast.warning("Updated local cart. Will sync when connection is restored.");
+          return;
+        } else if (err.response?.status === 401) {
+          errorMessage = 'Your session has expired. Please log in again.';
+        } else if (err.response?.status === 403) {
+          errorMessage = 'You do not have permission to update this cart.';
+        } else if (err.response?.status === 404) {
+          errorMessage = 'Item not found in your cart.';
+        } else if (err.response?.status === 400) {
+          errorMessage = err.response?.data?.message || 'Invalid request. Please try again with correct information.';
+        } else {
+          errorMessage = err.response?.data?.message || err.message || "Failed to update cart item";
+        }
+        
+        setError(errorMessage);
         toast.error(errorMessage);
       } finally {
         setLoading(false);
@@ -387,6 +479,32 @@ export const CartProvider = ({ children }) => {
     );
   }, [cartItems]);
 
+  const fetchCart = async () => {
+    if (isAuthenticated) {
+      setLoading(true);
+      try {
+        const response = await getCart();
+        if (response && response.success && response.data) {
+          setCartItems(response.data.items || []);
+          // Clear local storage cart as we're now using the server cart
+          localStorage.removeItem("cart");
+          return true;
+        } else {
+          // Initialize with empty cart if response is not as expected
+          console.warn('Unexpected response from getCart:', response);
+          return false;
+        }
+      } catch (err) {
+        console.error("Error fetching cart:", err);
+        setError("Failed to load your cart. Please try again.");
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    }
+    return false;
+  };
+
   return (
     <CartContext.Provider
       value={{
@@ -395,10 +513,12 @@ export const CartProvider = ({ children }) => {
         removeFromCart,
         clearCart,
         total,
+        fetchCart,
+        loading,
+        error
       }}
     >
       {children}
     </CartContext.Provider>
   );
 };
-

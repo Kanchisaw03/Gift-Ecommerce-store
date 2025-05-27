@@ -1,4 +1,4 @@
-import axiosInstance from './axiosConfig';
+import axiosInstance, { axiosPublic } from './axiosConfig';
 
 /**
  * Get all products with pagination and filters
@@ -7,9 +7,15 @@ import axiosInstance from './axiosConfig';
  */
 export const getProducts = async (params = {}) => {
   try {
-    const response = await axiosInstance.get('/products', { params });
+    // Use axiosPublic for fetching products since this doesn't require authentication
+    const response = await axiosPublic.get('/products', { params });
     return response.data;
   } catch (error) {
+    console.error('Error fetching products:', error);
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
     throw error.response?.data || { message: 'Failed to fetch products' };
   }
 };
@@ -21,9 +27,15 @@ export const getProducts = async (params = {}) => {
  */
 export const getProductById = async (productId) => {
   try {
-    const response = await axiosInstance.get(`/products/${productId}`);
+    // Use axiosPublic for fetching product details since this doesn't require authentication
+    const response = await axiosPublic.get(`/products/${productId}`);
     return response.data;
   } catch (error) {
+    console.error('Error fetching product details:', error);
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
     throw error.response?.data || { message: 'Failed to fetch product' };
   }
 };
@@ -35,9 +47,15 @@ export const getProductById = async (productId) => {
  */
 export const getFeaturedProducts = async (limit = 6) => {
   try {
-    const response = await axiosInstance.get('/products/featured', { params: { limit } });
+    // Use axiosPublic for fetching featured products
+    const response = await axiosPublic.get('/products/featured', { params: { limit } });
     return response.data;
   } catch (error) {
+    console.error('Error fetching featured products:', error);
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
     throw error.response?.data || { message: 'Failed to fetch featured products' };
   }
 };
@@ -49,9 +67,15 @@ export const getFeaturedProducts = async (limit = 6) => {
  */
 export const getNewArrivals = async (limit = 8) => {
   try {
-    const response = await axiosInstance.get('/products/new-arrivals', { params: { limit } });
+    // Use axiosPublic for fetching new arrivals
+    const response = await axiosPublic.get('/products/new-arrivals', { params: { limit } });
     return response.data;
   } catch (error) {
+    console.error('Error fetching new arrivals:', error);
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
     throw error.response?.data || { message: 'Failed to fetch new arrivals' };
   }
 };
@@ -63,9 +87,15 @@ export const getNewArrivals = async (limit = 8) => {
  */
 export const getBestSellingProducts = async (limit = 8) => {
   try {
-    const response = await axiosInstance.get('/products/best-selling', { params: { limit } });
+    // Use axiosPublic for fetching best selling products
+    const response = await axiosPublic.get('/products/best-selling', { params: { limit } });
     return response.data;
   } catch (error) {
+    console.error('Error fetching best selling products:', error);
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
     throw error.response?.data || { message: 'Failed to fetch best selling products' };
   }
 };
@@ -78,9 +108,15 @@ export const getBestSellingProducts = async (limit = 8) => {
  */
 export const getRelatedProducts = async (productId, limit = 4) => {
   try {
-    const response = await axiosInstance.get(`/products/${productId}/related`, { params: { limit } });
+    // Use axiosPublic for fetching related products
+    const response = await axiosPublic.get(`/products/${productId}/related`, { params: { limit } });
     return response.data;
   } catch (error) {
+    console.error('Error fetching related products:', error);
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
     throw error.response?.data || { message: 'Failed to fetch related products' };
   }
 };
@@ -92,9 +128,30 @@ export const getRelatedProducts = async (productId, limit = 4) => {
  */
 export const createProduct = async (productData) => {
   try {
-    console.log('Creating product with data:', JSON.stringify(productData, null, 2));
-    const response = await axiosInstance.post('/products', productData);
-    console.log('Product creation response:', JSON.stringify(response.data, null, 2));
+    // Log form data entries for debugging
+    if (productData instanceof FormData) {
+      console.log('Creating product with FormData:');
+      for (let [key, value] of productData.entries()) {
+        // Don't log the full image data, just indicate it's there
+        if (key === 'images' && value instanceof File) {
+          console.log(`${key}: [File] ${value.name} (${value.type}, ${value.size} bytes)`);
+        } else {
+          console.log(`${key}: ${value}`);
+        }
+      }
+    } else {
+      console.log('Creating product with data:', productData);
+    }
+    
+    // Set the correct headers for FormData
+    const config = {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    };
+    
+    const response = await axiosInstance.post('/products', productData, config);
+    console.log('Product creation response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error creating product:', error);
@@ -109,6 +166,33 @@ export const createProduct = async (productData) => {
  * @param {Object} productData - Updated product data
  * @returns {Promise} - Response from API
  */
+/**
+ * Get all categories
+ * @returns {Promise} - Response from API
+ */
+export const getCategories = async () => {
+  try {
+    console.log('Fetching categories from backend');
+    const response = await axiosPublic.get('/categories');
+    console.log('Categories response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
+    
+    // For debugging purposes
+    if (error.response) {
+      console.error('Error response status:', error.response.status);
+      console.error('Error response data:', error.response.data);
+    }
+    
+    throw error.response?.data || { message: 'Failed to fetch categories' };
+  }
+};
+
 export const updateProduct = async (productId, productData) => {
   try {
     const response = await axiosInstance.put(`/products/${productId}`, productData);

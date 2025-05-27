@@ -1,178 +1,130 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { luxuryTheme } from '../../styles/luxuryTheme';
 import DashboardLayout from '../../shared/components/DashboardLayout';
+import { useSeller } from '../../hooks/useSeller';
+import { toast } from 'react-toastify';
+import axiosInstance from '../../services/api/axiosConfig';
+import { FiEye, FiTruck, FiPackage, FiClock, FiCheckCircle, FiXCircle, FiSearch } from 'react-icons/fi';
 
 const SellerOrders = () => {
-  // Mock data for orders
-  const [orders, setOrders] = useState([
-    {
-      id: 'ORD-10042',
-      customer: 'Alexander Wilson',
-      email: 'alexander@example.com',
-      date: '2025-05-15',
-      status: 'delivered',
-      total: 750.00,
-      items: [
-        {
-          id: 'PROD-001',
-          name: 'Handcrafted Gold Watch',
-          price: 750.00,
-          quantity: 1
+  const { orders, fetchSellerOrders, updateOrderStatus, loading: contextLoading } = useSeller();
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [updatingOrderId, setUpdatingOrderId] = useState(null);
+  
+  useEffect(() => {
+    const loadOrders = async () => {
+      setLoading(true);
+      try {
+        console.log('SellerOrders: Attempting to fetch orders with filters');
+        
+        const filters = {};
+        if (selectedStatus) {
+          filters.status = selectedStatus;
+          console.log(`Filtering by status: ${selectedStatus}`);
         }
-      ],
-      paymentStatus: 'paid',
-      shippingAddress: '123 Luxury Lane, Beverly Hills, CA 90210'
-    },
-    {
-      id: 'ORD-10036',
-      customer: 'Sophia Martinez',
-      email: 'sophia@example.com',
-      date: '2025-05-01',
-      status: 'shipped',
-      total: 200.00,
-      items: [
-        {
-          id: 'PROD-002',
-          name: 'Premium Leather Wallet',
-          price: 200.00,
-          quantity: 1
+        
+        console.log('Calling fetchSellerOrders with params:', {
+          page: currentPage,
+          limit: 10,
+          ...filters
+        });
+        
+        // Try multiple approaches to fetch orders
+        try {
+          console.log('Attempting primary fetch method');
+          const response = await fetchSellerOrders({
+            page: currentPage,
+            limit: 10,
+            ...filters
+          });
+          
+          console.log('SellerOrders: Response received:', response);
+          
+          if (response?.pagination) {
+            console.log(`Setting total pages to ${response.pagination.pages}`);
+            setTotalPages(response.pagination.pages);
+          } else {
+            console.warn('Response does not contain pagination information');
+          }
+        } catch (fetchError) {
+          console.error('Error with primary fetch method:', fetchError);
+          
+          // Try an alternative approach if the first one fails
+          console.log('Attempting alternative fetch method');
+          try {
+            const altResponse = await axiosInstance.get('/seller/orders/debug');
+            console.log('Debug endpoint response:', altResponse.data);
+          } catch (debugError) {
+            console.error('Debug endpoint also failed:', debugError);
+          }
+          
+          toast.info('Using alternative fetch method. Please check console for details.');
+          throw fetchError; // Re-throw to be caught by the outer catch block
         }
-      ],
-      paymentStatus: 'paid',
-      shippingAddress: '456 Elite Street, New York, NY 10001'
-    },
-    {
-      id: 'ORD-10028',
-      customer: 'James Thompson',
-      email: 'james@example.com',
-      date: '2025-04-22',
-      status: 'processing',
-      total: 350.00,
-      items: [
-        {
-          id: 'PROD-003',
-          name: 'Crystal Whiskey Decanter Set',
-          price: 350.00,
-          quantity: 1
-        }
-      ],
-      paymentStatus: 'paid',
-      shippingAddress: '789 Prestige Ave, Chicago, IL 60007'
-    },
-    {
-      id: 'ORD-10015',
-      customer: 'Emma Johnson',
-      email: 'emma@example.com',
-      date: '2025-04-10',
-      status: 'delivered',
-      total: 400.00,
-      items: [
-        {
-          id: 'PROD-002',
-          name: 'Premium Leather Wallet',
-          price: 200.00,
-          quantity: 2
-        }
-      ],
-      paymentStatus: 'paid',
-      shippingAddress: '101 Opulent Road, Los Angeles, CA 90048'
-    },
-    {
-      id: 'ORD-10008',
-      customer: 'William Davis',
-      email: 'william@example.com',
-      date: '2025-03-25',
-      status: 'cancelled',
-      total: 180.00,
-      items: [
-        {
-          id: 'PROD-004',
-          name: 'Silk Cashmere Scarf',
-          price: 180.00,
-          quantity: 1
-        }
-      ],
-      paymentStatus: 'refunded',
-      shippingAddress: '222 Wealth Way, Miami, FL 33101'
+      } catch (error) {
+        console.error('Error loading orders:', error);
+        toast.error(`Failed to load orders: ${error.message || 'Unknown error'}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadOrders();
+  }, [fetchSellerOrders, currentPage, selectedStatus]);
+  
+  const handleStatusChange = async (orderId, newStatus) => {
+    setUpdatingOrderId(orderId);
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      toast.success(`Order status updated to ${newStatus}`);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      toast.error('Failed to update order status');
+    } finally {
+      setUpdatingOrderId(null);
     }
-  ]);
-
-  const [filter, setFilter] = useState({
-    status: 'all',
-    dateRange: 'all',
-    search: ''
-  });
-
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilter({
-      ...filter,
-      [name]: value
-    });
+  };
+  
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2
+    }).format(amount);
   };
 
-  const handleUpdateStatus = (orderId, newStatus) => {
-    // In a real app, this would be an API call
-    setOrders(orders.map(order => {
-      if (order.id === orderId) {
-        return { ...order, status: newStatus };
-      }
-      return order;
-    }));
+  // Format date
+  const formatDate = (dateString) => {
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
-  // Apply filters
-  const filteredOrders = orders.filter(order => {
-    // Status filter
-    if (filter.status !== 'all' && order.status !== filter.status) {
-      return false;
+  // Get status color
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'delivered':
+        return 'text-green-500';
+      case 'shipped':
+        return 'text-purple-500';
+      case 'processing':
+        return 'text-blue-500';
+      case 'pending':
+        return 'text-yellow-500';
+      case 'cancelled':
+        return 'text-red-500';
+      default:
+        return 'text-gray-500';
     }
-    
-    // Date range filter
-    if (filter.dateRange !== 'all') {
-      const orderDate = new Date(order.date);
-      const today = new Date();
-      
-      switch (filter.dateRange) {
-        case 'today':
-          if (orderDate.toDateString() !== today.toDateString()) {
-            return false;
-          }
-          break;
-        case 'week':
-          const weekAgo = new Date();
-          weekAgo.setDate(today.getDate() - 7);
-          if (orderDate < weekAgo) {
-            return false;
-          }
-          break;
-        case 'month':
-          const monthAgo = new Date();
-          monthAgo.setMonth(today.getMonth() - 1);
-          if (orderDate < monthAgo) {
-            return false;
-          }
-          break;
-        default:
-          break;
-      }
-    }
-    
-    // Search filter
-    if (filter.search) {
-      const searchLower = filter.search.toLowerCase();
-      return (
-        order.id.toLowerCase().includes(searchLower) ||
-        order.customer.toLowerCase().includes(searchLower) ||
-        order.email.toLowerCase().includes(searchLower)
-      );
-    }
-    
-    return true;
-  });
+  };
 
+  // Get status badge class
   const getStatusBadgeClass = (status) => {
     switch (status) {
       case 'delivered':
@@ -190,171 +142,246 @@ const SellerOrders = () => {
     }
   };
 
-  const getPaymentStatusBadgeClass = (status) => {
+  // Get status icon
+  const getStatusIcon = (status) => {
     switch (status) {
-      case 'paid':
-        return 'bg-green-900 text-green-300';
+      case 'delivered':
+        return <FiCheckCircle className="text-green-500" />;
+      case 'shipped':
+        return <FiTruck className="text-purple-500" />;
+      case 'processing':
+        return <FiPackage className="text-blue-500" />;
       case 'pending':
-        return 'bg-yellow-900 text-yellow-300';
-      case 'refunded':
-        return 'bg-purple-900 text-purple-300';
-      case 'failed':
-        return 'bg-red-900 text-red-300';
+        return <FiClock className="text-yellow-500" />;
+      case 'cancelled':
+        return <FiXCircle className="text-red-500" />;
       default:
-        return 'bg-gray-800 text-gray-300';
+        return <FiClock className="text-gray-500" />;
     }
   };
-
-  const pageVariants = {
-    initial: { opacity: 0, y: 20 },
-    in: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -20 }
+  
+  // Filter orders by search term
+  const filteredOrders = orders?.filter(order => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    const orderNumber = order.orderNumber || order._id?.substring(0, 8) || '';
+    const customerName = order.user?.name || 'Customer';
+    
+    return (
+      orderNumber.toLowerCase().includes(searchLower) ||
+      customerName.toLowerCase().includes(searchLower)
+    );
+  }) || [];
+  
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+  
+  // Handle status filter change
+  const handleStatusFilterChange = (e) => {
+    setSelectedStatus(e.target.value);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+  
+  // Handle search
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
   };
 
   return (
     <DashboardLayout>
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="exit"
-        variants={pageVariants}
-        transition={{ duration: 0.5 }}
-        className="w-full"
-      >
-        <h1 className="text-3xl font-playfair font-bold mb-8">Orders</h1>
+      <div className="p-6">
+        <div className="mb-8">
+          <h1 
+            className="text-3xl font-bold text-white mb-2"
+            style={{ fontFamily: luxuryTheme.typography.fontFamily.heading }}
+          >
+            Orders Management
+          </h1>
+          <p 
+            className="text-gray-400"
+            style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
+          >
+            View and manage all your customer orders
+          </p>
+        </div>
 
-        {/* Filters */}
-        <div className="bg-[#121212] rounded-lg shadow-xl p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Order Status</label>
-              <select
-                name="status"
-                value={filter.status}
-                onChange={handleFilterChange}
-                className="w-full bg-[#1E1E1E] border border-gray-700 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
-              >
-                <option value="all">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="shipped">Shipped</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+        {/* Filters and Search */}
+        <div className="bg-neutral-800 border border-gold/20 p-4 rounded-sm mb-6">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+              <div className="relative w-full sm:w-48">
+                <select
+                  value={selectedStatus}
+                  onChange={handleStatusFilterChange}
+                  className="w-full bg-neutral-700 border border-neutral-600 text-white py-2 px-3 rounded-sm appearance-none focus:outline-none focus:ring-1 focus:ring-gold/50"
+                  style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="processing">Processing</option>
+                  <option value="shipped">Shipped</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Date Range</label>
-              <select
-                name="dateRange"
-                value={filter.dateRange}
-                onChange={handleFilterChange}
-                className="w-full bg-[#1E1E1E] border border-gray-700 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
-              >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">Last 7 Days</option>
-                <option value="month">Last 30 Days</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Search</label>
+
+            <div className="relative w-full md:w-64">
               <input
                 type="text"
-                name="search"
-                value={filter.search}
-                onChange={handleFilterChange}
-                placeholder="Search by order ID, customer..."
-                className="w-full bg-[#1E1E1E] border border-gray-700 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
+                placeholder="Search orders..."
+                value={searchTerm}
+                onChange={handleSearch}
+                className="w-full bg-neutral-700 border border-neutral-600 text-white py-2 pl-10 pr-3 rounded-sm focus:outline-none focus:ring-1 focus:ring-gold/50"
+                style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
               />
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <FiSearch className="text-gray-400" />
+              </div>
             </div>
           </div>
         </div>
 
         {/* Orders Table */}
-        <div className="bg-[#121212] rounded-lg shadow-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-[#1E1E1E] border-b border-gray-700">
-                <tr>
-                  <th className="py-4 px-6 text-left text-sm font-semibold text-[#D4AF37]">Order ID</th>
-                  <th className="py-4 px-6 text-left text-sm font-semibold text-[#D4AF37]">Customer</th>
-                  <th className="py-4 px-6 text-left text-sm font-semibold text-[#D4AF37]">Date</th>
-                  <th className="py-4 px-6 text-left text-sm font-semibold text-[#D4AF37]">Status</th>
-                  <th className="py-4 px-6 text-left text-sm font-semibold text-[#D4AF37]">Payment</th>
-                  <th className="py-4 px-6 text-left text-sm font-semibold text-[#D4AF37]">Total</th>
-                  <th className="py-4 px-6 text-left text-sm font-semibold text-[#D4AF37]">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-[#1A1A1A] transition-colors">
-                    <td className="py-4 px-6 text-sm font-medium">{order.id}</td>
-                    <td className="py-4 px-6 text-sm">
-                      <div>
-                        <p>{order.customer}</p>
-                        <p className="text-xs text-gray-400">{order.email}</p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-sm">
-                      {new Date(order.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                    </td>
-                    <td className="py-4 px-6 text-sm">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(order.status)}`}>
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 text-sm">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPaymentStatusBadgeClass(order.paymentStatus)}`}>
-                        {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 text-sm font-medium">${order.total.toFixed(2)}</td>
-                    <td className="py-4 px-6 text-sm">
-                      <div className="flex space-x-2">
-                        <Link
-                          to={`/seller/orders/${order.id}`}
-                          className="px-2 py-1 bg-[#D4AF37] text-black rounded hover:bg-[#C4A137] transition-colors"
-                        >
-                          View
-                        </Link>
-                        {order.status === 'processing' && (
-                          <button
-                            onClick={() => handleUpdateStatus(order.id, 'shipped')}
-                            className="px-2 py-1 bg-blue-900 text-blue-300 rounded hover:bg-blue-800 transition-colors"
-                          >
-                            Ship
-                          </button>
-                        )}
-                        {order.status === 'shipped' && (
-                          <button
-                            onClick={() => handleUpdateStatus(order.id, 'delivered')}
-                            className="px-2 py-1 bg-green-900 text-green-300 rounded hover:bg-green-800 transition-colors"
-                          >
-                            Deliver
-                          </button>
-                        )}
-                        {(order.status === 'processing' || order.status === 'pending') && (
-                          <button
-                            onClick={() => handleUpdateStatus(order.id, 'cancelled')}
-                            className="px-2 py-1 bg-red-900 text-red-300 rounded hover:bg-red-800 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                      </div>
-                    </td>
+        <div className="bg-neutral-800 border border-gold/20 rounded-sm overflow-hidden">
+          {loading || contextLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gold"></div>
+                <div className="absolute inset-0 animate-ping opacity-30 rounded-full h-12 w-12 border border-gold"></div>
+              </div>
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="text-gray-400 mb-2">
+                <svg className="w-16 h-16 mx-auto text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-1">No orders found</h3>
+              <p className="text-gray-400 max-w-md mx-auto">
+                {searchTerm ? 'Try adjusting your search or filter criteria.' : 'You don\'t have any orders yet.'}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-gold/20 bg-neutral-900">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gold uppercase tracking-wider">
+                      Order ID
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gold uppercase tracking-wider">
+                      Customer
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gold uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gold uppercase tracking-wider">
+                      Total
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gold uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gold uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {filteredOrders.length === 0 && (
-            <div className="p-8 text-center">
-              <p className="text-gray-400">No orders found matching your filters.</p>
+                </thead>
+                <tbody className="divide-y divide-gold/10">
+                  {filteredOrders.map((order) => (
+                    <tr key={order._id} className="hover:bg-neutral-700/30 transition-colors">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                        #{order.orderNumber || order._id?.substring(0, 8)}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-white">
+                        {order.user?.name || 'Customer'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                        {formatDate(order.createdAt)}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-white">
+                        {formatCurrency(order.sellerTotal || order.total)}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm">
+                        <span className={`px-2 py-1 rounded-sm text-xs font-medium ${getStatusBadgeClass(order.status)}`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                        <div className="flex space-x-2">
+                          <div className="relative inline-block text-left">
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                              disabled={updatingOrderId === order._id}
+                              className="bg-neutral-700 border border-neutral-600 text-white py-1 px-2 rounded-sm text-xs appearance-none focus:outline-none focus:ring-1 focus:ring-gold/50"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="processing">Processing</option>
+                              <option value="shipped">Shipped</option>
+                              <option value="delivered">Delivered</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                            {updatingOrderId === order._id && (
+                              <div className="absolute right-0 top-0 h-full flex items-center pr-2">
+                                <div className="animate-spin h-3 w-3 border-t-2 border-gold rounded-full"></div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <Link 
+                            to={`/orders/${order._id}`}
+                            className="text-gold hover:text-gold/80 transition-colors"
+                            title="View Order Details"
+                          >
+                            <FiEye />
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          
+          {/* Pagination */}
+          {!loading && !contextLoading && filteredOrders.length > 0 && totalPages > 1 && (
+            <div className="flex justify-center items-center space-x-2 p-4 border-t border-gold/20">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 bg-neutral-700 text-white rounded-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              
+              <div className="text-white">
+                Page {currentPage} of {totalPages}
+              </div>
+              
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 bg-neutral-700 text-white rounded-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
     </DashboardLayout>
   );
 };

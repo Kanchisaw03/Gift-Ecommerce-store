@@ -2,6 +2,7 @@ const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
 const Wishlist = require('../models/wishlist.model');
 const Product = require('../models/product.model');
+const Cart = require('../models/cart.model');
 
 // @desc    Get user wishlist
 // @route   GET /api/wishlist
@@ -175,26 +176,11 @@ exports.moveToCart = asyncHandler(async (req, res, next) => {
   }
 
   // Check if product is available and approved
-  if (product.status !== 'approved' || product.stock <= 0) {
-    return next(
-      new ErrorResponse('This product is currently not available', 400)
-    );
-  }
-
-  // Check if requested quantity is available
-  if (quantity > product.stock) {
-    return next(
-      new ErrorResponse(`Only ${product.stock} items available in stock`, 400)
-    );
-  }
-
   // Find user's wishlist
-  const wishlist = await Wishlist.findOne({ user: req.user.id });
+  let wishlist = await Wishlist.findOne({ user: req.user.id });
 
   if (!wishlist) {
-    return next(
-      new ErrorResponse('Wishlist not found', 404)
-    );
+    return next(new ErrorResponse('Wishlist not found', 404));
   }
 
   // Check if product is in wishlist
@@ -208,20 +194,95 @@ exports.moveToCart = asyncHandler(async (req, res, next) => {
     );
   }
 
-  // Import cart controller
-  const { addToCart } = require('./cart.controller');
+  // Get the product details from the wishlist
+  const wishlistProduct = await Product.findById(productId);
+  if (!wishlistProduct) {
+    return next(new ErrorResponse('Product not found in database', 404));
+  }
+  
+  // Check if product is available and approved
+  if (wishlistProduct.status !== 'approved') {
+    return next(new ErrorResponse('This product is not available for purchase', 400));
+  }
 
-  // Add to cart (we need to modify the request object)
-  req.params.id = productId;
-  req.body = { quantity };
+  // Check if product is in stock
+  if (wishlistProduct.stock <= 0) {
+    return next(new ErrorResponse('This product is out of stock', 400));
+  }
 
-  // Call addToCart function
-  await addToCart(req, res, next);
+  // Check if requested quantity is available
+  if (quantity > wishlistProduct.stock) {
+    return next(new ErrorResponse(`Only ${wishlistProduct.stock} items available in stock`, 400));
+  }
 
-  // If we get here, the product was added to cart successfully
-  // Now remove from wishlist
+  // Find user's cart
+  let cart = await Cart.findOne({ user: req.user.id });
+
+  // If cart doesn't exist, create one
+  if (!cart) {
+    cart = await Cart.create({
+      user: req.user.id,
+      items: []
+    });
+  }
+
+  // Check if product is already in cart
+  const itemIndex = cart.items.findIndex(item => {
+    return item.product && item.product.toString() === productId;
+  });
+
+  // Get current price
+  const price = wishlistProduct.onSale && wishlistProduct.salePrice > 0 
+    ? wishlistProduct.salePrice 
+    : wishlistProduct.price;
+
+  console.log('Adding product to cart:', { 
+    productId, 
+    name: wishlistProduct.name, 
+    price, 
+    quantity 
+  });
+
+  if (itemIndex > -1) {
+    // Product exists in cart, update quantity
+    cart.items[itemIndex].quantity += quantity;
+    console.log('Updated existing cart item quantity to:', cart.items[itemIndex].quantity);
+  } else {
+    // Product is not in cart, add new item
+    cart.items.push({
+      product: wishlistProduct._id,
+      quantity,
+      price,
+      name: wishlistProduct.name,
+      image: wishlistProduct.images && wishlistProduct.images[0] ? wishlistProduct.images[0].url : '/assets/images/product-placeholder.jpg',
+      seller: wishlistProduct.seller
+    });
+    console.log('Added new item to cart');
+  }
+
+  // Save cart
+  await cart.save();
+  console.log('Cart saved successfully');
+
+  // Remove from wishlist
   wishlist.products.splice(productIndex, 1);
   await wishlist.save();
+  console.log('Product removed from wishlist');
 
-  // Response is handled by addToCart
+  // Return updated cart
+  cart = await Cart.findById(cart._id)
+    .populate({
+      path: 'items.product',
+      select: 'name price salePrice onSale images stock'
+    })
+    .populate({
+      path: 'items.seller',
+      select: 'name sellerInfo.businessName'
+    });
+
+  res.status(200).json({
+    success: true,
+    message: 'Item moved from wishlist to cart successfully',
+    data: cart
+  });
 });

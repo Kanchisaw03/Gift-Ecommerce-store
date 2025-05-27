@@ -84,7 +84,7 @@ export default function About() {
               alt="Our team selecting gifts" 
               className="relative z-10 w-full h-full object-cover border border-gold/20"
               onError={(e) => {
-                e.target.src = "https://via.placeholder.com/600x400?text=Our+Story";
+                e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400' preserveAspectRatio='none'%3E%3Cg%3E%3Ctext style='font-family:Arial;font-size:24px;font-weight:bold;dominant-baseline:middle;text-anchor:middle;fill:rgba(100,100,100,0.8)' x='50%25' y='50%25'%3EOur Story%3C/text%3E%3C/g%3E%3C/svg%3E";
               }}
             />
           </motion.div>
@@ -209,7 +209,7 @@ export default function About() {
                     alt={member.name} 
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      e.target.src = `https://via.placeholder.com/300x300?text=${member.name.replace(' ', '+')}`;
+                      e.target.src = `data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300' preserveAspectRatio='none'%3E%3Cg%3E%3Ctext style='font-family:Arial;font-size:16px;font-weight:bold;dominant-baseline:middle;text-anchor:middle;fill:rgba(100,100,100,0.8)' x='50%25' y='50%25'%3E${member.name}%3C/text%3E%3C/g%3E%3C/svg%3E`;
                     }}
                   />
                 </div>

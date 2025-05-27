@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { motion, useAnimation } from "framer-motion";
 import { FiShoppingBag, FiHeart, FiEye, FiAward, FiStar } from "react-icons/fi";
 import { useCart } from "../hooks/useCart";
-import useWishlist from "../hooks/useWishlist";
+import { useWishlist } from "../context/WishlistContext";
 import luxuryTheme from "../styles/luxuryTheme";
 
 export default function ProductCard({ 
@@ -15,11 +15,8 @@ export default function ProductCard({
 }) {
   const { addToCart } = useCart() || { addToCart: () => {} };
   
-  // Safely initialize wishlist functions with fallbacks
-  const wishlistHook = useWishlist?.() || {};
-  const addToWishlist = wishlistHook.addToWishlist || (() => {});
-  const removeFromWishlist = wishlistHook.removeFromWishlist || (() => {});
-  const isInWishlist = wishlistHook.isInWishlist || (() => false);
+  // Use the new WishlistContext
+  const { addItem, removeItem, isInWishlist, toggleWishlistItem } = useWishlist();
   
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -28,7 +25,8 @@ export default function ProductCard({
 
   // Handle image loading error
   const handleImageError = (e) => {
-    e.target.src = "https://placehold.co/300x300/222222/gold?text=Product+Image";
+    // Use a data URI instead of an external service
+    e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22300%22%20height%3D%22300%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20300%20300%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_text%20%7B%20fill%3A%23D4AF37%3Bfont-weight%3Abold%3Bfont-family%3AArial%2C%20Helvetica%2C%20Open%20Sans%2C%20sans-serif%3Bfont-size%3A15pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder%22%3E%3Crect%20width%3D%22300%22%20height%3D%22300%22%20fill%3D%22%23222222%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20id%3D%22holder_text%22%20x%3D%2250%22%20y%3D%22150%22%3EProduct%20Image%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E";
     setImageLoaded(true);
   };
   
@@ -64,11 +62,7 @@ export default function ProductCard({
         return;
       }
       
-      if (isInWishlist(productId)) {
-        removeFromWishlist(productId);
-      } else {
-        addToWishlist(product);
-      }
+      toggleWishlistItem(productId);
     } catch (error) {
       console.error('Error toggling wishlist:', error);
     }
@@ -212,71 +206,36 @@ export default function ProductCard({
           </div>
         )}
         
-        {/* Quick Actions */}
-        <motion.div
-          className="absolute inset-x-0 bottom-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-          style={{
-            background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 50%, transparent 100%)',
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)'
-          }}
-          initial={{ opacity: 0, y: 20 }}
-          animate={isHovered ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <button
-              onClick={() => addToCart(product)}
-              className="flex-1 flex items-center justify-center py-2 px-4 rounded-md transition-all duration-300"
-              style={{
-                background: luxuryTheme.colors.gradients.gold,
-                color: '#000',
-                fontFamily: luxuryTheme.typography.fontFamily.body,
-                fontWeight: luxuryTheme.typography.fontWeight.medium,
-                letterSpacing: '0.05em',
-                boxShadow: luxuryTheme.shadows.subtle
-              }}
-              aria-label={`Add ${product.name} to cart`}
-            >
-              <FiShoppingBag className="mr-2" size={16} />
-              Add to Cart
-            </button>
-            
-            <button
-              onClick={toggleWishlist}
-              className="p-2 rounded-md transition-all duration-300"
-              style={{
-                background: product && product._id && isInWishlist(product._id || product.id) 
-                  ? 'rgba(220, 38, 38, 0.8)' 
-                  : 'rgba(0, 0, 0, 0.5)',
-                border: `1px solid ${product && product._id && isInWishlist(product._id || product.id) 
-                  ? 'rgba(220, 38, 38, 0.3)' 
-                  : luxuryTheme.colors.primary.accent + '50'}`,
-                color: product && product._id && isInWishlist(product._id || product.id) 
-                  ? 'white' 
-                  : luxuryTheme.colors.primary.light,
-                boxShadow: luxuryTheme.shadows.subtle
-              }}
-              aria-label={`${product && product._id && isInWishlist(product._id || product.id) ? 'Remove from' : 'Add to'} wishlist`}
-            >
-              <FiHeart size={18} />
-            </button>
-            
-            <Link
-              to={`/product/${product._id || product.id}`}
-              className="p-2 rounded-md transition-all duration-300"
-              style={{
-                background: 'rgba(0, 0, 0, 0.5)',
-                border: `1px solid ${luxuryTheme.colors.primary.accent}50`,
-                color: luxuryTheme.colors.primary.light,
-                boxShadow: luxuryTheme.shadows.subtle
-              }}
-              aria-label={`View ${product.name} details`}
-            >
-              <FiEye size={18} />
-            </Link>
-          </div>
-        </motion.div>
+        {/* Action buttons */}
+        <div className="absolute top-3 right-3 flex flex-col gap-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <button
+            onClick={toggleWishlist}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300"
+            style={{
+              background: 'rgba(0,0,0,0.7)',
+              border: `1px solid ${luxuryTheme.colors.primary.accent}50`,
+              color: isInWishlist(product?._id || product?.id) ? '#D4AF37' : luxuryTheme.colors.primary.light
+            }}
+            aria-label="Add to wishlist"
+          >
+            <FiHeart 
+              size={16} 
+              className={isInWishlist(product?._id || product?.id) ? 'fill-current' : ''}
+            />
+          </button>
+          <Link
+            to={`/product/${product._id || product.id}`}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300"
+            style={{
+              background: 'rgba(0,0,0,0.7)',
+              border: `1px solid ${luxuryTheme.colors.primary.accent}50`,
+              color: luxuryTheme.colors.primary.light
+            }}
+            aria-label="View product details"
+          >
+            <FiEye size={16} />
+          </Link>
+        </div>
       </div>
       
       {/* Product Details */}

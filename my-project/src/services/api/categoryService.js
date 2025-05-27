@@ -1,4 +1,4 @@
-import axiosInstance from './axiosConfig';
+import axiosInstance, { axiosPublic } from './axiosConfig';
 
 /**
  * Get all categories
@@ -7,9 +7,15 @@ import axiosInstance from './axiosConfig';
  */
 export const getCategories = async (params = {}) => {
   try {
-    const response = await axiosInstance.get('/categories', { params });
+    // Use axiosPublic for fetching categories since this is public data
+    const response = await axiosPublic.get('/categories', { params });
     return response.data;
   } catch (error) {
+    console.error('Error fetching categories:', error);
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
     throw error.response?.data || { message: 'Failed to fetch categories' };
   }
 };
@@ -21,9 +27,15 @@ export const getCategories = async (params = {}) => {
  */
 export const getCategoryById = async (categoryId) => {
   try {
-    const response = await axiosInstance.get(`/categories/${categoryId}`);
+    // Use axiosPublic for fetching category details
+    const response = await axiosPublic.get(`/categories/${categoryId}`);
     return response.data;
   } catch (error) {
+    console.error('Error fetching category details:', error);
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
     throw error.response?.data || { message: 'Failed to fetch category' };
   }
 };
@@ -36,9 +48,15 @@ export const getCategoryById = async (categoryId) => {
  */
 export const getCategoryWithProducts = async (categoryId, params = {}) => {
   try {
-    const response = await axiosInstance.get(`/categories/${categoryId}/products`, { params });
+    // Use axiosPublic for fetching category products
+    const response = await axiosPublic.get(`/categories/${categoryId}/products`, { params });
     return response.data;
   } catch (error) {
+    console.error('Error fetching category products:', error);
+    // Improved error handling
+    if (!error.response) {
+      return { success: false, message: 'Network error. Please check your connection.' };
+    }
     throw error.response?.data || { message: 'Failed to fetch category products' };
   }
 };

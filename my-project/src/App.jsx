@@ -15,6 +15,9 @@ import { UserProvider } from "./context/UserContext";
 import { SellerProvider } from "./context/SellerContext";
 import { AdminProvider } from "./context/AdminContext";
 import { SuperAdminProvider } from "./context/SuperAdminContext";
+import { WishlistProvider } from "./context/WishlistContext";
+import { CouponProvider } from "./context/CouponContext";
+import { NotificationProvider } from "./context/NotificationContext";
 import { ROLES } from "./context/AuthContext";
 import ProtectedRoute from "./shared/components/ProtectedRoute";
 
@@ -23,7 +26,11 @@ import Home from "./Pages/Home";
 import Product from "./Pages/Product";
 import ProductListing from "./Pages/ProductListing";
 import Cart from "./Pages/Cart";
+import Wishlist from "./Pages/Wishlist";
 import Checkout from "./Pages/Checkout";
+import OrderConfirmation from "./Pages/OrderConfirmation";
+import TrackOrder from "./Pages/TrackOrder";
+import UserOrders from "./Pages/UserOrders";
 import About from "./Pages/About";
 import Contact from "./Pages/Contact";
 import NotFound from "./Pages/NotFound";
@@ -40,7 +47,8 @@ import OrderHistory from "./buyer/pages/OrderHistory";
 import OrderDetails from "./buyer/pages/OrderDetails";
 import AddressBook from "./buyer/pages/AddressBook";
 import ReviewsRatings from "./buyer/pages/ReviewsRatings";
-import TrackOrder from "./buyer/pages/TrackOrder";
+import Notifications from "./buyer/pages/Notifications";
+
 
 // Seller Pages
 import SellerDashboard from "./seller/pages/SellerDashboard";
@@ -52,6 +60,7 @@ import SellerOrderDetails from "./seller/pages/SellerOrderDetails";
 import SellerAnalytics from "./seller/pages/SellerAnalytics";
 import SellerEarnings from "./seller/pages/SellerEarnings";
 import SellerSettings from "./seller/pages/SellerSettings";
+import SellerCoupons from "./seller/pages/SellerCoupons";
 import TestProductPage from "./seller/pages/TestProductPage";
 
 // Admin Pages
@@ -61,6 +70,7 @@ import AdminUserManagement from "./admin/pages/AdminUserManagement";
 import AdminSettings from "./admin/pages/AdminSettings";
 import AdminSellerManagement from "./admin/pages/AdminSellerManagement";
 import AdminOrderManagement from "./admin/pages/AdminOrderManagement";
+import AdminOrders from "./admin/pages/AdminOrders";
 import AdminReviewManagement from "./admin/pages/AdminReviewManagement";
 import AdminAnalytics from "./admin/pages/AdminAnalytics";
 
@@ -72,6 +82,7 @@ import SuperAdminPlatformSettings from "./admin/pages/SuperAdminPlatformSettings
 import SuperAdminCategories from "./admin/pages/SuperAdminCategories";
 import SuperAdminAuditLogs from "./admin/pages/SuperAdminAuditLogs";
 import SuperAdminFeaturedProducts from "./admin/pages/SuperAdminFeaturedProducts";
+import SuperAdminOrders from "./admin/pages/SuperAdminOrders";
 
 // Components
 import Navbar from "./components/Navbar";
@@ -97,11 +108,14 @@ export default function App() {
       <AuthProvider>
         <ProductProvider>
           <CartProvider>
-            <UserProvider>
-              <SellerProvider>
-                <AdminProvider>
-                  <SuperAdminProvider>
-                    <ScrollToTop />
+            <WishlistProvider>
+              <CouponProvider>
+                <UserProvider>
+                  <SellerProvider>
+                    <AdminProvider>
+                      <SuperAdminProvider>
+                        <NotificationProvider>
+                          <ScrollToTop />
         <div className="flex flex-col min-h-screen w-full overflow-x-hidden bg-[#0A0A0A] text-white font-sans">
           <ToastContainer 
             position="top-right"
@@ -132,7 +146,10 @@ export default function App() {
                   <Route path="/products" element={<ProductListing />} />
                   <Route path="/product/:id" element={<Product />} />
                   <Route path="/cart" element={<Cart />} />
+                  <Route path="/wishlist" element={<Wishlist />} />
                   <Route path="/checkout" element={<Checkout />} />
+                  <Route path="/order-confirmation/:orderId" element={<OrderConfirmation />} />
+                  <Route path="/track-order/:orderId" element={<TrackOrder />} />
                   <Route path="/about" element={<About />} />
                   <Route path="/contact" element={<Contact />} />
                   
@@ -143,24 +160,37 @@ export default function App() {
                   <Route path="/unauthorized" element={<Unauthorized />} />
                   
                   {/* Buyer Routes */}
-                  {/* Protected routes with role-based access control */}
-                  <Route path="/profile" element={<ProtectedRoute allowedRoles={[ROLES.BUYER, ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><Profile /></ProtectedRoute>} />
-                  <Route path="/orders" element={<ProtectedRoute allowedRoles={[ROLES.BUYER, ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><OrderHistory /></ProtectedRoute>} />
-                  <Route path="/orders/:id" element={<ProtectedRoute allowedRoles={[ROLES.BUYER, ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><OrderDetails /></ProtectedRoute>} />
-                  <Route path="/addresses" element={<ProtectedRoute allowedRoles={[ROLES.BUYER, ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><AddressBook /></ProtectedRoute>} />
-                  <Route path="/reviews" element={<ProtectedRoute allowedRoles={[ROLES.BUYER, ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><ReviewsRatings /></ProtectedRoute>} />
-                  <Route path="/track/:id" element={<ProtectedRoute allowedRoles={[ROLES.BUYER, ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><TrackOrder /></ProtectedRoute>} />
+                  <Route path="/profile" element={<ProtectedRoute allowedRoles={[ROLES.BUYER, ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}>
+                    <Profile />
+                  </ProtectedRoute>} />
+                  <Route path="/notifications" element={<ProtectedRoute allowedRoles={[ROLES.BUYER, ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}>
+                    <Notifications />
+                  </ProtectedRoute>} />
+                  <Route path="/orders" element={<ProtectedRoute allowedRoles={[ROLES.BUYER, ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}>
+                    <OrderHistory />
+                  </ProtectedRoute>} />
+                  <Route path="/orders/:id" element={<ProtectedRoute allowedRoles={[ROLES.BUYER, ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}>
+                    <OrderDetails />
+                  </ProtectedRoute>} />
                   
                   {/* Seller Routes */}
-                  {/* Protected routes with role-based access control */}
-                  <Route path="/seller" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><SellerDashboard /></ProtectedRoute>} />
-                  <Route path="/seller/products" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><SellerProducts /></ProtectedRoute>} />
-                  <Route path="/seller/products/add" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><SellerAddProduct /></ProtectedRoute>} />
-                  <Route path="/seller/products/edit/:id" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><SellerEditProduct /></ProtectedRoute>} />
+                  <Route path="/seller" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}>
+                    <SellerDashboard />
+                  </ProtectedRoute>} />
+                  <Route path="/seller/products" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}>
+                    <SellerProducts />
+                  </ProtectedRoute>} />
+                  <Route path="/seller/products/add" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}>
+                    <SellerAddProduct />
+                  </ProtectedRoute>} />
+                  <Route path="/seller/products/edit/:id" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}>
+                    <SellerEditProduct />
+                  </ProtectedRoute>} />
                   <Route path="/seller/orders" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><SellerOrders /></ProtectedRoute>} />
                   <Route path="/seller/orders/:id" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><SellerOrderDetails /></ProtectedRoute>} />
                   <Route path="/seller/analytics" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><SellerAnalytics /></ProtectedRoute>} />
                   <Route path="/seller/earnings" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><SellerEarnings /></ProtectedRoute>} />
+                  <Route path="/seller/coupons" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><SellerCoupons /></ProtectedRoute>} />
                   <Route path="/seller/settings" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><SellerSettings /></ProtectedRoute>} />
                   <Route path="/seller/test-product" element={<ProtectedRoute allowedRoles={[ROLES.SELLER, ROLES.ADMIN, ROLES.SUPER_ADMIN]}><TestProductPage /></ProtectedRoute>} />
                   
@@ -170,7 +200,7 @@ export default function App() {
                   <Route path="/admin/products" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPER_ADMIN]}><AdminProductManagement /></ProtectedRoute>} />
                   <Route path="/admin/users" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPER_ADMIN]}><AdminUserManagement /></ProtectedRoute>} />
                   <Route path="/admin/sellers" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPER_ADMIN]}><AdminSellerManagement /></ProtectedRoute>} />
-                  <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPER_ADMIN]}><AdminOrderManagement /></ProtectedRoute>} />
+                  <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPER_ADMIN]}><AdminOrders /></ProtectedRoute>} />
                   <Route path="/admin/reviews" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPER_ADMIN]}><AdminReviewManagement /></ProtectedRoute>} />
                   <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPER_ADMIN]}><AdminAnalytics /></ProtectedRoute>} />
                   <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPER_ADMIN]}><AdminSettings /></ProtectedRoute>} />
@@ -184,6 +214,7 @@ export default function App() {
                   <Route path="/admin/super/categories" element={<ProtectedRoute allowedRoles={ROLES.SUPER_ADMIN}><SuperAdminCategories /></ProtectedRoute>} />
                   <Route path="/admin/super/audit-logs" element={<ProtectedRoute allowedRoles={ROLES.SUPER_ADMIN}><SuperAdminAuditLogs /></ProtectedRoute>} />
                   <Route path="/admin/super/featured-products" element={<ProtectedRoute allowedRoles={ROLES.SUPER_ADMIN}><SuperAdminFeaturedProducts /></ProtectedRoute>} />
+                  <Route path="/admin/super/orders" element={<ProtectedRoute allowedRoles={ROLES.SUPER_ADMIN}><SuperAdminOrders /></ProtectedRoute>} />
                   
                   {/* 404 Route */}
                   <Route path="*" element={<NotFound />} />
@@ -194,10 +225,13 @@ export default function App() {
           <Footer />
           <CartSidebar isOpen={cartOpen} onClose={() => setCartOpen(false)} />
         </div>
-                  </SuperAdminProvider>
-                </AdminProvider>
-              </SellerProvider>
-            </UserProvider>
+                        </NotificationProvider>
+                      </SuperAdminProvider>
+                    </AdminProvider>
+                  </SellerProvider>
+                </UserProvider>
+              </CouponProvider>
+            </WishlistProvider>
           </CartProvider>
         </ProductProvider>
       </AuthProvider>

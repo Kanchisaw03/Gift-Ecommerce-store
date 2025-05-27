@@ -188,7 +188,7 @@ export default function Home() {
                         transition: 'all 0.5s ease'
                       }}
                       onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/400x500?text=Luxury+Perfume";
+                        e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='500' viewBox='0 0 400 500' preserveAspectRatio='none'%3E%3Cg%3E%3Ctext style='font-family:Arial;font-size:20px;font-weight:bold;dominant-baseline:middle;text-anchor:middle;fill:rgba(100,100,100,0.8)' x='50%25' y='50%25'%3ELuxury Perfume%3C/text%3E%3C/g%3E%3C/svg%3E";
                       }}
                     />
                     
@@ -270,7 +270,7 @@ export default function Home() {
                         transition: 'all 0.5s ease'
                       }}
                       onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/400x500?text=Luxury+Gift+Box";
+                        e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='500' viewBox='0 0 400 500' preserveAspectRatio='none'%3E%3Cg%3E%3Ctext style='font-family:Arial;font-size:20px;font-weight:bold;dominant-baseline:middle;text-anchor:middle;fill:rgba(100,100,100,0.8)' x='50%25' y='50%25'%3ELuxury Gift Box%3C/text%3E%3C/g%3E%3C/svg%3E";
                       }}
                     />
                     
@@ -531,7 +531,7 @@ export default function Home() {
                 alt="Happy customer with gift" 
                 className="rounded-lg shadow-lg max-w-full h-auto"
                 onError={(e) => {
-                  e.target.src = "https://via.placeholder.com/500x400?text=Happy+Customer";
+                  e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='400' viewBox='0 0 500 400' preserveAspectRatio='none'%3E%3Cg%3E%3Ctext style='font-family:Arial;font-size:20px;font-weight:bold;dominant-baseline:middle;text-anchor:middle;fill:rgba(100,100,100,0.8)' x='50%25' y='50%25'%3EHappy Customer%3C/text%3E%3C/g%3E%3C/svg%3E";
                 }}
               />
             </motion.div>

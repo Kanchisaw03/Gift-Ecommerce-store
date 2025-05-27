@@ -7,6 +7,9 @@ const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const sendEmail = require('../utils/sendEmail');
 
+// Valid order statuses
+const VALID_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+
 // @desc    Create new order
 // @route   POST /api/orders
 // @access  Private
@@ -113,15 +116,20 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
   // Clear user's cart
   await Cart.findOneAndDelete({ user: req.user.id });
 
-  // Send order confirmation email
+  // Get user details for notifications
+  const user = await User.findById(req.user.id).select('name email phone');
+
+  // Send order confirmation notification (email, SMS, and in-app)
   try {
-    await sendEmail({
-      email: req.user.email,
-      subject: `Order Confirmation - ${order.orderNumber}`,
-      message: `Thank you for your order! Your order number is ${order.orderNumber}. We will process your order shortly.`
-    });
+    const { orderConfirmationTemplate } = require('../utils/emailTemplates');
+    const emailTemplate = orderConfirmationTemplate(order, user);
+    
+    const notificationService = require('../utils/notificationService');
+    await notificationService.sendOrderConfirmation(order, user, emailTemplate);
+    
+    console.log(`Order confirmation notifications sent to user ${user._id}`);
   } catch (err) {
-    console.log('Error sending order confirmation email:', err);
+    console.error('Error sending order confirmation notifications:', err);
   }
 
   res.status(201).json({
@@ -263,23 +271,20 @@ exports.updateOrderStatus = asyncHandler(async (req, res, next) => {
     user: req.user.id
   });
 
-  // Send email notification to customer
-  try {
-    const statusMessages = {
-      processing: 'Your order is now being processed.',
-      shipped: `Your order has been shipped! Tracking number: ${order.trackingNumber}`,
-      delivered: 'Your order has been delivered. Thank you for shopping with us!',
-      cancelled: `Your order has been cancelled. Reason: ${order.cancellationReason}`,
-      refunded: `Your order has been refunded. Refund amount: $${order.refundAmount}`
-    };
+  // Get user details for notifications
+  const user = await User.findById(order.user).select('name email phone');
 
-    await sendEmail({
-      email: order.user.email,
-      subject: `Order ${order.orderNumber} - ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-      message: `${statusMessages[status] || `Your order status has been updated to ${status}.`}`
-    });
+  // Send order status update notification (email, SMS, and in-app)
+  try {
+    const { orderStatusUpdateTemplate } = require('../utils/emailTemplates');
+    const emailTemplate = orderStatusUpdateTemplate(order, user, status);
+    
+    const notificationService = require('../utils/notificationService');
+    await notificationService.sendOrderStatusUpdate(order, user, status, emailTemplate);
+    
+    console.log(`Order status update notifications sent to user ${user._id}`);
   } catch (err) {
-    console.log('Error sending order status update email:', err);
+    console.error('Error sending order status update notifications:', err);
   }
 
   res.status(200).json({
@@ -358,21 +363,62 @@ exports.addTracking = asyncHandler(async (req, res, next) => {
 });
 
 // @desc    Get my orders
-// @route   GET /api/orders/my-orders
+// @route   GET /api/orders/my-orders OR /api/orders/user
 // @access  Private
 exports.getMyOrders = asyncHandler(async (req, res, next) => {
-  const orders = await Order.find({ user: req.user.id })
-    .sort({ createdAt: -1 })
-    .populate({
-      path: 'items.product',
-      select: 'name images'
+  console.log(`Fetching orders for user: ${req.user.id}, role: ${req.user.role}`);
+  
+  try {
+    // Set up pagination if query params are provided
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const startIndex = (page - 1) * limit;
+    
+    // Build filter options
+    const filterOptions = { user: req.user.id };
+    
+    // Add status filter if provided
+    if (req.query.status && VALID_STATUSES.includes(req.query.status)) {
+      filterOptions.status = req.query.status;
+    }
+    
+    // Get total count for pagination
+    const total = await Order.countDocuments(filterOptions);
+    
+    // Execute query with pagination
+    const orders = await Order.find(filterOptions)
+      .sort({ createdAt: -1 })
+      .skip(startIndex)
+      .limit(limit)
+      .populate({
+        path: 'items.product',
+        select: 'name images price'
+      })
+      .populate({
+        path: 'items.seller',
+        select: 'name sellerInfo.businessName'
+      });
+    
+    console.log(`Found ${orders.length} orders for user ${req.user.id}`);
+    
+    // Pagination result
+    const pagination = {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit)
+    };
+    
+    res.status(200).json({
+      success: true,
+      count: orders.length,
+      pagination,
+      data: orders
     });
-
-  res.status(200).json({
-    success: true,
-    count: orders.length,
-    data: orders
-  });
+  } catch (err) {
+    console.error(`Error fetching orders for user ${req.user.id}:`, err);
+    return next(new ErrorResponse('Error fetching orders', 500));
+  }
 });
 
 // @desc    Get seller orders

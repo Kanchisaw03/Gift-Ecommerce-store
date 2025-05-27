@@ -184,15 +184,14 @@ const corsOptions = {
     // Allow requests with no origin (like mobile apps, curl, etc)
     if (!origin) return callback(null, true);
     
-    // Check if origin matches our frontend URL (with or without trailing slash)
-    const originWithoutSlash = origin.replace(/\/$/, '');
-    if (originWithoutSlash === normalizedFrontendUrl) {
+    // In development mode, allow all origins
+    if (process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
     
-    // For development, also allow localhost with different ports
-    if (process.env.NODE_ENV !== 'production' && 
-        (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'))) {
+    // Check if origin matches our frontend URL (with or without trailing slash)
+    const originWithoutSlash = origin.replace(/\/$/, '');
+    if (originWithoutSlash === normalizedFrontendUrl) {
       return callback(null, true);
     }
     
@@ -209,11 +208,52 @@ const corsOptions = {
 // Log CORS configuration
 console.log('CORS configured with normalized frontend URL:', normalizedFrontendUrl);
 
-// Apply CORS middleware
-app.use(cors(corsOptions));
+// Apply CORS middleware - configured for development with credentials
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+    
+    // In development, allow localhost with any port
+    if (process.env.NODE_ENV !== 'production' && 
+        (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'))) {
+      return callback(null, true);
+    }
+    
+    // Check against the configured frontend URL
+    if (origin === normalizedFrontendUrl) {
+      return callback(null, true);
+    }
+    
+    callback(new Error(`CORS not allowed for origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-User-Role'],
+  exposedHeaders: ['Set-Cookie', 'Authorization']
+}));
 
 // Handle OPTIONS requests explicitly
-app.options('*', cors(corsOptions));
+app.options('*', function(req, res) {
+  // Set CORS headers for preflight requests
+  // Allows to request from any origin when credentials are not included
+  if (!req.headers['access-control-request-headers']?.includes('authorization')) {
+    res.header('Access-Control-Allow-Origin', '*');
+  } else {
+    // For requests with credentials, set the specific origin
+    const origin = req.headers.origin;
+    if (origin && (origin.startsWith('http://localhost:') || 
+                   origin.startsWith('http://127.0.0.1:') || 
+                   origin === normalizedFrontendUrl)) {
+      res.header('Access-Control-Allow-Origin', origin);
+    }
+  }
+  
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-Role');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.status(200).end();
+});
 
 // Log all requests for debugging
 app.use((req, res, next) => {

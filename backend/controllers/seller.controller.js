@@ -59,6 +59,82 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @desc    Get seller orders
+// @route   GET /api/seller/orders
+// @access  Private (Seller)
+exports.getSellerOrders = asyncHandler(async (req, res, next) => {
+  // Set up pagination
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const startIndex = (page - 1) * limit;
+  const endIndex = page * limit;
+  
+  // Filter by status if provided
+  const filter = { 'items.seller': req.user.id };
+  if (req.query.status) {
+    filter.status = req.query.status;
+  }
+  
+  // Get total count
+  const total = await Order.countDocuments(filter);
+  
+  // Get orders
+  const orders = await Order.find(filter)
+    .sort({ createdAt: -1 })
+    .skip(startIndex)
+    .limit(limit)
+    .populate('user', 'name email')
+    .populate('items.product', 'name images price');
+  
+  // Process orders to include only items belonging to this seller
+  const sellerOrders = orders.map(order => {
+    // Create a copy of the order document
+    const orderObj = order.toObject();
+    
+    // Filter items to only include those belonging to this seller
+    orderObj.items = orderObj.items.filter(
+      item => item.seller && item.seller.toString() === req.user.id
+    );
+    
+    // Calculate total for seller items
+    orderObj.sellerTotal = orderObj.items.reduce(
+      (sum, item) => sum + (item.price * item.quantity),
+      0
+    );
+    
+    return orderObj;
+  });
+  
+  // Pagination result
+  const pagination = {};
+  
+  if (endIndex < total) {
+    pagination.next = {
+      page: page + 1,
+      limit
+    };
+  }
+  
+  if (startIndex > 0) {
+    pagination.prev = {
+      page: page - 1,
+      limit
+    };
+  }
+  
+  pagination.pages = Math.ceil(total / limit);
+  pagination.page = page;
+  pagination.limit = limit;
+  pagination.total = total;
+  
+  res.status(200).json({
+    success: true,
+    count: sellerOrders.length,
+    pagination,
+    data: sellerOrders
+  });
+});
+
 // @desc    Get seller products
 // @route   GET /api/seller/products
 // @access  Private (Seller)
@@ -168,11 +244,23 @@ exports.getSellerOrders = asyncHandler(async (req, res, next) => {
     };
   }
   
+  // Calculate pagination pages
+  pagination.pages = Math.ceil(total / limit);
+  pagination.page = page;
+  pagination.limit = limit;
+  pagination.total = total;
+
+  console.log('Sending seller orders response:', {
+    success: true,
+    count: filteredOrders.length,
+    pagination,
+    data: filteredOrders
+  });
+
   res.status(200).json({
     success: true,
     count: filteredOrders.length,
     pagination,
-    total,
     data: filteredOrders
   });
 });

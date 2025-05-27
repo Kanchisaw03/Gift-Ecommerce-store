@@ -8,7 +8,9 @@ import {
   getPlatformSettings,
   updatePlatformSettings,
   getSystemLogs as getAuditLogs,
-  getPlatformAnalytics
+  getPlatformAnalytics,
+  getAllOrders,
+  updateSuperAdminOrderStatus
 } from '../services/api/superAdminService';
 import { useAuth } from '../hooks/useAuth';
 
@@ -148,6 +150,65 @@ export const SuperAdminProvider = ({ children }) => {
     }
   };
   
+  // Fetch all orders
+  const fetchAllOrders = async (params = {}) => {
+    if (!isAuthenticated || !isSuperAdmin) return;
+    
+    setLoading(true);
+    try {
+      const data = await getAllOrders(params);
+      if (data && data.success) {
+        // Update orders in state
+        setDashboardData(prev => ({
+          ...prev,
+          orders: data.data
+        }));
+      }
+      setError(null);
+      return data;
+    } catch (err) {
+      console.error('Error fetching all orders:', err);
+      setError(err.message || 'Failed to fetch orders');
+      toast.error(err.message || 'Failed to fetch orders');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update order status
+  const updateOrderStatus = async (orderId, status) => {
+    if (!isAuthenticated || !isSuperAdmin) return;
+    
+    try {
+      console.log(`Super admin updating order status for ${orderId} to ${status}`);
+      // Pass 'super_admin' as the role parameter to use the correct API endpoint
+      const data = await updateSuperAdminOrderStatus(orderId, { status }, 'super_admin');
+      console.log('Update order status response:', data);
+      
+      if (data && data.success) {
+        // Update the order in the dashboard data if it exists
+        setDashboardData(prev => {
+          if (!prev.orders) return prev;
+          
+          return {
+            ...prev,
+            orders: prev.orders.map(order => 
+              order._id === orderId ? { ...order, status } : order
+            )
+          };
+        });
+        
+        toast.success(`Order status updated to ${status}`);
+      }
+      return data;
+    } catch (err) {
+      console.error('Error updating order status:', err);
+      toast.error(err.message || 'Failed to update order status');
+      throw err;
+    }
+  };
+
   // Update category
   const editCategory = async (categoryId, categoryData) => {
     if (!isAuthenticated || !isSuperAdmin) return;
@@ -432,7 +493,10 @@ export const SuperAdminProvider = ({ children }) => {
         savePlatformSettings,
         fetchAuditLogs,
         fetchFeaturedProducts,
-        saveFeaturedProducts
+        saveFeaturedProducts,
+        fetchAllOrders,
+        updateOrderStatus,
+        orders: dashboardData.orders || []
       }}
     >
       {children}

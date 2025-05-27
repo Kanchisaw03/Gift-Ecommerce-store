@@ -9,7 +9,7 @@ const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').re
 
 console.log('API URL configured as:', API_URL);
 
-// Create axios instance with default config
+// Create axios instance with default config for authenticated requests
 const axiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
@@ -17,6 +17,18 @@ const axiosInstance = axios.create({
   },
   withCredentials: true, // Required for cookies and authentication
   timeout: 60000, // 60 second timeout for slower connections
+});
+
+// Create a public axios instance for requests that don't need credentials
+// This is useful for public endpoints where CORS might be an issue with credentials
+export const axiosPublic = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  },
+  withCredentials: false, // No credentials for public endpoints
+  timeout: 60000
 });
 
 // Set up request interceptor to handle different content types

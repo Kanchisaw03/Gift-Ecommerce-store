@@ -40,13 +40,11 @@ export default function CartSidebar({ isOpen, onClose }) {
       // Create a new item with one less quantity
       const updatedItem = { ...item, quantity: item.quantity - 1 };
       // Remove the current item
-      removeFromCart(item.id);
+      removeFromCart(item._id || item.id);
       // Add the updated item
       addToCart(updatedItem);
-      // Decrease the quantity by 1
-      updatedItem.quantity -= 1;
     } else {
-      removeFromCart(item.id);
+      removeFromCart(item._id || item.id);
     }
   };
 
@@ -122,7 +120,7 @@ export default function CartSidebar({ isOpen, onClose }) {
               ) : (
                 cartItems.map((item, index) => (
                   <motion.div 
-                    key={item.id} 
+                    key={item._id || item.id || index} 
                     custom={index}
                     variants={itemVariants}
                     initial="hidden"
@@ -136,7 +134,8 @@ export default function CartSidebar({ isOpen, onClose }) {
                         alt={item.name} 
                         className="w-full h-full object-cover" 
                         onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/80x80?text=Gift';
+                          // Use a data URI as fallback instead of external placeholder service
+                          e.target.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2280%22%20height%3D%2280%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2080%2080%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_189e%20text%20%7B%20fill%3A%23333%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A10pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder%22%3E%3Crect%20width%3D%2280%22%20height%3D%2280%22%20fill%3D%22%23555%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2226%22%20y%3D%2245%22%3EGift%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E';
                         }}
                       />
                     </div>
@@ -173,7 +172,7 @@ export default function CartSidebar({ isOpen, onClose }) {
                           </button>
                         </div>
                         <button
-                          onClick={() => removeFromCart(item.id)}
+                          onClick={() => removeFromCart(item._id || item.id)}
                           className="text-xs uppercase tracking-wider text-gold/70 hover:text-gold border-b border-transparent hover:border-gold/30 pb-px transition-all duration-300"
                           style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
                           aria-label="Remove item"

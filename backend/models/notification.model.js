@@ -20,7 +20,7 @@ const NotificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['order', 'product', 'account', 'promotion', 'system'],
+    enum: ['order_confirmation', 'order_status_update', 'order_shipped', 'order_delivered', 'order_cancelled', 'order_refunded', 'product', 'account', 'promotion', 'system'],
     default: 'system'
   },
   priority: {
@@ -49,6 +49,31 @@ const NotificationSchema = new mongoose.Schema({
     type: String,
     enum: ['Order', 'Product', 'User', 'Review', 'other'],
     default: 'other'
+  },
+  channels: {
+    type: [String],
+    enum: ['email', 'sms', 'push', 'in_app'],
+    default: ['in_app']
+  },
+  deliveryStatus: {
+    email: {
+      sent: { type: Boolean, default: false },
+      error: String,
+      sentAt: Date
+    },
+    sms: {
+      sent: { type: Boolean, default: false },
+      error: String,
+      sentAt: Date
+    },
+    push: {
+      sent: { type: Boolean, default: false },
+      error: String,
+      sentAt: Date
+    }
+  },
+  metadata: {
+    type: mongoose.Schema.Types.Mixed
   },
   createdAt: {
     type: Date,

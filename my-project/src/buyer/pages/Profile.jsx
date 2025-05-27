@@ -4,12 +4,15 @@ import { toast } from 'react-toastify';
 import { luxuryTheme } from '../../styles/luxuryTheme';
 import { useUser } from '../../hooks/useUser';
 import { useAuth } from '../../hooks/useAuth';
+import { Link } from 'react-router-dom';
+import OrderTrackingModal from '../components/OrderTrackingModal';
 
 const Profile = () => {
   const { userProfile, loading, error, updateProfile } = useUser();
   const { user: authUser } = useAuth();
   
   const [isEditing, setIsEditing] = useState(false);
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -111,12 +114,32 @@ const Profile = () => {
                   <span className="text-[#D4AF37]">Role:</span> <span className="capitalize">{userProfile?.role || authUser?.role || 'User'}</span>
                 </p>
               </div>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="mt-4 px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded hover:bg-[#B8860B] transition-colors"
-              >
-                Edit Profile
-              </button>
+              <div className="flex flex-wrap gap-3 mt-4">
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded hover:bg-[#B8860B] transition-colors"
+                >
+                  Edit Profile
+                </button>
+                <button
+                  onClick={() => setIsTrackingModalOpen(true)}
+                  className="px-4 py-2 bg-transparent border border-[#D4AF37] text-[#D4AF37] font-semibold rounded hover:bg-[#D4AF37]/10 transition-colors flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Track Orders
+                </button>
+                <Link
+                  to="/orders"
+                  className="px-4 py-2 bg-transparent border border-gray-600 text-white font-semibold rounded hover:bg-gray-800 transition-colors flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  Order History
+                </Link>
+              </div>
             </div>
           </div>
         ) : (
@@ -217,6 +240,15 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      {/* Order Tracking Modal */}
+      {isTrackingModalOpen && (
+        <OrderTrackingModal
+          isOpen={isTrackingModalOpen}
+          onClose={() => setIsTrackingModalOpen(false)}
+          userId={userProfile?._id || authUser?._id}
+        />
+      )}
     </motion.div>
   );
 };

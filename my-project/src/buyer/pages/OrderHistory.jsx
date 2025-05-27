@@ -1,44 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { luxuryTheme } from '../../styles/luxuryTheme';
+import { toast } from 'react-toastify';
+import { useAuth } from '../../hooks/useAuth';
+import { getUserOrders } from '../../services/api/orderService';
 
 const OrderHistory = () => {
-  // Mock data for orders
-  const [orders, setOrders] = useState([
-    {
-      id: 'ORD-10042',
-      date: '2025-05-15',
-      status: 'Delivered',
-      total: 1250.00,
-      items: 3,
-      trackingNumber: 'TRK-8765432'
-    },
-    {
-      id: 'ORD-10036',
-      date: '2025-05-01',
-      status: 'Shipped',
-      total: 750.00,
-      items: 2,
-      trackingNumber: 'TRK-7654321'
-    },
-    {
-      id: 'ORD-10028',
-      date: '2025-04-22',
-      status: 'Processing',
-      total: 1800.00,
-      items: 1,
-      trackingNumber: null
-    },
-    {
-      id: 'ORD-10015',
-      date: '2025-04-10',
-      status: 'Delivered',
-      total: 450.00,
-      items: 1,
-      trackingNumber: 'TRK-6543210'
-    }
-  ]);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (!isAuthenticated) return;
+      
+      setLoading(true);
+      try {
+        console.log('Fetching user orders from OrderHistory component');
+        const response = await getUserOrders();
+        console.log('Orders response from service:', response);
+        
+        if (response && response.success) {
+          setOrders(response.data);
+          setError(null);
+        } else {
+          setError('No orders found or invalid response format');
+          console.warn('Invalid response format:', response);
+        }
+      } catch (err) {
+        console.error('Error fetching orders:', err);
+        setError('Failed to fetch your orders. Please try again later.');
+        toast.error(err.message || 'Failed to fetch your orders');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchOrders();
+  }, [isAuthenticated]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -74,7 +75,21 @@ const OrderHistory = () => {
         Order History
       </h1>
 
-      {orders.length > 0 ? (
+      {loading ? (
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#D4AF37]"></div>
+        </div>
+      ) : error ? (
+        <div className="bg-[#121212] rounded-lg shadow-xl p-8 text-center">
+          <p className="text-red-400 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center px-4 py-2 bg-[#D4AF37] text-black font-medium rounded-md hover:bg-[#C4A137] transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      ) : orders.length > 0 ? (
         <div className="bg-[#121212] rounded-lg shadow-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -90,28 +105,28 @@ const OrderHistory = () => {
               </thead>
               <tbody className="divide-y divide-gray-800">
                 {orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-[#1A1A1A] transition-colors">
-                    <td className="py-4 px-6 text-sm font-medium">{order.id}</td>
+                  <tr key={order._id} className="hover:bg-[#1A1A1A] transition-colors">
+                    <td className="py-4 px-6 text-sm font-medium">{order.orderNumber || order._id}</td>
                     <td className="py-4 px-6 text-sm">
-                      {new Date(order.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      {new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                     </td>
                     <td className="py-4 px-6 text-sm">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                        {order.status}
+                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-sm font-medium">${order.total.toFixed(2)}</td>
-                    <td className="py-4 px-6 text-sm">{order.items}</td>
+                    <td className="py-4 px-6 text-sm font-medium">${order.total ? order.total.toFixed(2) : '0.00'}</td>
+                    <td className="py-4 px-6 text-sm">{order.items ? order.items.length : 0}</td>
                     <td className="py-4 px-6 text-sm space-x-2">
                       <Link
-                        to={`/orders/${order.id}`}
+                        to={`/orders/${order._id}`}
                         className="inline-flex items-center px-3 py-1 bg-[#D4AF37] text-black text-xs font-medium rounded hover:bg-[#C4A137] transition-colors"
                       >
                         View Details
                       </Link>
                       {order.trackingNumber && (
                         <Link
-                          to={`/track/${order.id}`}
+                          to={`/track-order/${order._id}`}
                           className="inline-flex items-center px-3 py-1 border border-[#D4AF37] text-[#D4AF37] text-xs font-medium rounded hover:bg-[#1E1E1E] transition-colors"
                         >
                           Track Order

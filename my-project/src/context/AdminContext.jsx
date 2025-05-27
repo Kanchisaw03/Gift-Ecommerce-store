@@ -5,10 +5,10 @@ import {
   getAdminDashboardStats, 
   getUsers as getAdminUsers,
   getAdminProducts,
-  getAdminOrders,
   getAdminReviews,
   getAdminAnalytics
 } from '../services/api/adminService';
+import { getAdminOrders, updateOrderStatus as updateAdminOrderStatus } from '../services/api/orderService';
 import { useAuth } from '../hooks/useAuth';
 
 const AdminContext = createContext();
@@ -187,6 +187,42 @@ export const AdminProvider = ({ children }) => {
     }
   };
   
+  // Update order status
+  const updateOrderStatus = async (orderId, status) => {
+    if (!isAuthenticated || !isAdmin) return;
+    
+    try {
+      console.log(`Admin updating order status for ${orderId} to ${status}`);
+      // Pass 'admin' as the role parameter to use the correct API endpoint
+      const data = await updateAdminOrderStatus(orderId, { status }, 'admin');
+      console.log('Update order status response:', data);
+      
+      if (data && data.success) {
+        // Update the order in the local state
+        setOrders(prevOrders => 
+          prevOrders.map(order => 
+            order._id === orderId ? { ...order, status } : order
+          )
+        );
+        
+        // Update dashboard data if the order is in recentOrders
+        setDashboardData(prev => ({
+          ...prev,
+          recentOrders: prev.recentOrders.map(order => 
+            order._id === orderId ? { ...order, status } : order
+          )
+        }));
+        
+        toast.success(`Order ${orderId} status updated to ${status}`);
+      }
+      return data;
+    } catch (err) {
+      console.error('Error updating order status:', err);
+      toast.error(err.message || 'Failed to update order status');
+      throw err;
+    }
+  };
+  
   // Socket.IO event listeners for real-time updates
   useEffect(() => {
     if (!socket || !isAuthenticated || !isAdmin) {
@@ -310,7 +346,8 @@ export const AdminProvider = ({ children }) => {
         fetchOrders,
         fetchSellers,
         fetchReviews,
-        fetchAnalytics
+        fetchAnalytics,
+        updateOrderStatus
       }}
     >
       {children}

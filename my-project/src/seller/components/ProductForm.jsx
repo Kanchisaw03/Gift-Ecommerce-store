@@ -166,14 +166,14 @@ const ProductForm = ({ isEdit = false }) => {
         console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
       }
 
-      // Make direct API call with axios
+      // Use the imported API service functions instead of direct axios calls
       let response;
       if (isEdit && id) {
         console.log(`Updating product with ID: ${id}`);
-        response = await axiosInstance.put(`/products/${id}`, productFormData);
+        response = await updateProduct(id, productFormData);
       } else {
         console.log('Creating new product');
-        response = await axiosInstance.post('/products', productFormData);
+        response = await createProduct(productFormData);
       }
       
       console.log('API response:', response.data);

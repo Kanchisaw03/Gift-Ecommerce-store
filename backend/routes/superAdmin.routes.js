@@ -14,6 +14,9 @@ const {
   performBackup
 } = require('../controllers/superAdmin.controller');
 
+// Import order management functions
+const superAdminOrderController = require('../controllers/superAdminOrder.controller');
+
 const router = express.Router();
 
 // Import middleware
@@ -57,5 +60,28 @@ router.route('/featured-products')
 
 router.route('/system/backup')
   .post(protect, authorize('super_admin'), performBackup);
+
+// Debug route to check API accessibility
+router.get('/debug', (req, res) => {
+  console.log('Super admin debug route accessed');
+  res.status(200).json({
+    success: true,
+    message: 'Super admin API is working'
+  });
+});
+
+// Order management routes
+router.route('/orders')
+  .get(protect, authorize('super_admin'), superAdminOrderController.getAllOrders);
+
+// Alternative route for orders (for compatibility)
+router.route('/my-orders')
+  .get(protect, authorize('super_admin'), superAdminOrderController.getAllOrders);
+
+router.route('/orders/:id')
+  .get(protect, authorize('super_admin'), superAdminOrderController.getOrderDetails);
+
+router.route('/orders/:id/status')
+  .put(protect, authorize('super_admin'), superAdminOrderController.updateOrderStatus);
 
 module.exports = router;

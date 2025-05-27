@@ -141,7 +141,7 @@ export default function Cart() {
                           alt={item.name} 
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            e.target.src = "https://via.placeholder.com/100x100?text=Gift";
+                            e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg%3E%3Ctext style='font-family:Arial;font-size:14px;font-weight:bold;dominant-baseline:middle;text-anchor:middle;fill:rgba(100,100,100,0.8)' x='50%25' y='50%25'%3EGift%3C/text%3E%3C/g%3E%3C/svg%3E";
                           }}
                         />
                       </div>

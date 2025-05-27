@@ -4,10 +4,10 @@ import useSocket from '../hooks/useSocket';
 import { 
   getSellerDashboardStats, 
   getSellerProducts, 
-  getSellerOrders,
   getSellerAnalytics,
   getSellerEarnings
 } from '../services/api/sellerService';
+import { getSellerOrders, updateOrderStatus } from '../services/api/orderService';
 import { useAuth } from '../hooks/useAuth';
 
 const SellerContext = createContext();
@@ -94,6 +94,33 @@ export const SellerProvider = ({ children }) => {
       return null;
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // Update order status
+  const handleUpdateOrderStatus = async (orderId, status) => {
+    if (!isAuthenticated || user?.role !== 'seller') return;
+    
+    try {
+      console.log(`Seller updating order status for ${orderId} to ${status}`);
+      // Pass 'seller' as the role parameter to use the correct API endpoint
+      const response = await updateOrderStatus(orderId, { status }, 'seller');
+      console.log('Update order status response:', response);
+      
+      if (response && response.success) {
+        // Update the order in the local state
+        setOrders(prevOrders => 
+          prevOrders.map(order => 
+            order._id === orderId ? { ...order, status } : order
+          )
+        );
+        toast.success('Order status updated successfully');
+        return response;
+      }
+    } catch (err) {
+      console.error('Error updating order status:', err);
+      toast.error(err.message || 'Failed to update order status');
+      return null;
     }
   };
   
@@ -219,7 +246,8 @@ export const SellerProvider = ({ children }) => {
         fetchSellerProducts,
         fetchSellerOrders,
         fetchSellerAnalytics,
-        fetchSellerEarnings
+        fetchSellerEarnings,
+        updateOrderStatus: handleUpdateOrderStatus
       }}
     >
       {children}

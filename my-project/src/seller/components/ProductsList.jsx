@@ -98,7 +98,7 @@ const ProductsList = ({ onEdit, onDelete }) => {
             alt={row.name} 
             className="w-full h-full object-cover"
             onError={(e) => {
-              e.target.src = "https://via.placeholder.com/48x48?text=Product";
+              e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' preserveAspectRatio='none'%3E%3Cg%3E%3Ctext style='font-family:Arial;font-size:10px;font-weight:bold;dominant-baseline:middle;text-anchor:middle;fill:rgba(100,100,100,0.8)' x='50%25' y='50%25'%3EProduct%3C/text%3E%3C/g%3E%3C/svg%3E";
             }}
           />
         </div>

@@ -17,25 +17,61 @@ exports.getProducts = asyncHandler(async (req, res, next) => {
 // @route   GET /api/products/:id
 // @access  Public
 exports.getProduct = asyncHandler(async (req, res, next) => {
-  const product = await Product.findById(req.params.id)
-    .populate({
-      path: 'seller',
-      select: 'name avatar sellerInfo.businessName sellerInfo.rating'
-    })
-    .populate('category')
-    .populate('subcategory')
-    .populate({
-      path: 'reviews',
-      match: { status: 'approved' },
-      populate: {
-        path: 'user',
-        select: 'name avatar'
-      }
-    });
+  const productId = req.params.id;
+  
+  // Check if the ID is a valid MongoDB ObjectId
+  if (!mongoose.Types.ObjectId.isValid(productId) && !/^[0-9]+$/.test(productId)) {
+    return next(
+      new ErrorResponse(`Invalid product ID format: ${productId}`, 400)
+    );
+  }
+  
+  // Try to find by MongoDB ObjectId first
+  let product;
+  
+  try {
+    product = await Product.findById(productId)
+      .populate({
+        path: 'seller',
+        select: 'name avatar sellerInfo.businessName sellerInfo.rating'
+      })
+      .populate('category')
+      .populate('subcategory')
+      .populate({
+        path: 'reviews',
+        match: { status: 'approved' },
+        populate: {
+          path: 'user',
+          select: 'name avatar'
+        }
+      });
+  } catch (err) {
+    // If there's an error with ObjectId casting, try to find by legacy ID if it's numeric
+    if (err.name === 'CastError' && /^[0-9]+$/.test(productId)) {
+      product = await Product.findOne({ legacyId: parseInt(productId, 10) })
+        .populate({
+          path: 'seller',
+          select: 'name avatar sellerInfo.businessName sellerInfo.rating'
+        })
+        .populate('category')
+        .populate('subcategory')
+        .populate({
+          path: 'reviews',
+          match: { status: 'approved' },
+          populate: {
+            path: 'user',
+            select: 'name avatar'
+          }
+        });
+    } else {
+      // If it's not a CastError or not a numeric ID, pass the error to the error handler
+      return next(err);
+    }
+  }
 
   if (!product) {
     return next(
-      new ErrorResponse(`Product not found with id of ${req.params.id}`, 404)
+      new ErrorResponse(`Product not found with id of ${productId}`, 404)
     );
   }
 
@@ -422,18 +458,40 @@ exports.getProductsByCategory = asyncHandler(async (req, res, next) => {
 // @route   GET /api/products/:id/related
 // @access  Public
 exports.getRelatedProducts = asyncHandler(async (req, res, next) => {
-  const product = await Product.findById(req.params.id);
+  const productId = req.params.id;
+  
+  // Check if the ID is a valid MongoDB ObjectId
+  if (!mongoose.Types.ObjectId.isValid(productId) && !/^[0-9]+$/.test(productId)) {
+    return next(
+      new ErrorResponse(`Invalid product ID format: ${productId}`, 400)
+    );
+  }
+  
+  // Try to find by MongoDB ObjectId first
+  let product;
+  
+  try {
+    product = await Product.findById(productId);
+  } catch (err) {
+    // If there's an error with ObjectId casting, try to find by legacy ID if it's numeric
+    if (err.name === 'CastError' && /^[0-9]+$/.test(productId)) {
+      product = await Product.findOne({ legacyId: parseInt(productId, 10) });
+    } else {
+      // If it's not a CastError or not a numeric ID, pass the error to the error handler
+      return next(err);
+    }
+  }
 
   if (!product) {
     return next(
-      new ErrorResponse(`Product not found with id of ${req.params.id}`, 404)
+      new ErrorResponse(`Product not found with id of ${productId}`, 404)
     );
   }
 
   const limit = parseInt(req.query.limit) || 4;
 
   const products = await Product.find({
-    _id: { $ne: req.params.id },
+    _id: { $ne: product._id }, // Use the found product's _id
     category: product.category,
     status: 'approved'
   })

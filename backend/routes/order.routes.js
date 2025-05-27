@@ -33,6 +33,20 @@ router.route('/')
   )
   .post(protect, createOrder);
 
+// Debug route to check if the API is accessible
+router.route('/debug')
+  .get((req, res) => {
+    console.log('Order debug route accessed');
+    res.status(200).json({
+      success: true,
+      message: 'Order API is working'
+    });
+  });
+
+// Routes for buyers to access their orders (both endpoints supported for compatibility)
+router.route('/user')
+  .get(protect, getMyOrders);
+
 router.route('/my-orders')
   .get(protect, getMyOrders);
 
