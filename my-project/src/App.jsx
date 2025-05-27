@@ -7,6 +7,9 @@ import "react-toastify/dist/ReactToastify.css";
 // Import luxury styles
 import "./styles/luxuryStyles.css";
 
+// Import ChatBot component
+import ChatBot from "./components/ChatBot/ChatBot";
+
 // Contexts
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
@@ -224,6 +227,7 @@ export default function App() {
           </main>
           <Footer />
           <CartSidebar isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+          <ChatBot />
         </div>
                         </NotificationProvider>
                       </SuperAdminProvider>

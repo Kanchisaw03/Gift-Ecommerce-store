@@ -43,6 +43,7 @@ const reportRoutes = require('./routes/report.routes');
 const webhookRoutes = require('./routes/webhook.routes');
 const contactRoutes = require('./routes/contact.routes');
 const testRoutes = require('./routes/test.routes');
+const aiRoutes = require('./routes/ai.routes');
 
 // Initialize express app
 const app = express();
@@ -331,6 +332,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/test', testRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
