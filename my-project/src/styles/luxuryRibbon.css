@@ -1,0 +1,410 @@
+/* Simplified Luxury Ribbon Styles */
+.luxury-ribbon-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1; /* Put behind the gift boxes */
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.luxury-ribbon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Simple solid gold ribbon */
+.luxury-ribbon-simple {
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  right: 10%;
+  height: 30px; /* Thick ribbon */
+  background: #FFD700; /* Pure gold color */
+  box-shadow: 0 0 15px rgba(255,215,0,0.6);
+  transform: translateY(-50%);
+  z-index: -1; /* Ensure it's behind gift boxes */
+  /* Gold texture */
+  background-image: 
+    linear-gradient(
+      to bottom, 
+      #FFD700 0%, 
+      #FFC800 30%, 
+      #FFEF00 50%,
+      #FFC800 70%,
+      #FFD700 100%
+    );
+  /* Realistic ribbon edges */
+  border-top: 1px solid rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid rgba(139, 117, 0, 0.5);
+}
+
+/* Create 7 segments for a flowing ribbon */
+.luxury-ribbon-segment:nth-child(1) {
+  top: calc(50% - 12px);
+  left: 15%;
+  width: 10%;
+  transform: rotateY(-15deg) rotateZ(5deg) translateZ(10px);
+  animation: ribbon-segment-1 10s infinite ease-in-out;
+}
+
+.luxury-ribbon-segment:nth-child(2) {
+  top: calc(50% - 14px);
+  left: 25%;
+  width: 10%;
+  transform: rotateY(-5deg) rotateZ(2deg) translateZ(5px);
+  animation: ribbon-segment-2 10s infinite ease-in-out;
+}
+
+.luxury-ribbon-segment:nth-child(3) {
+  top: calc(50% - 12px);
+  left: 35%;
+  width: 10%;
+  transform: rotateY(5deg) rotateZ(-2deg) translateZ(0px);
+  animation: ribbon-segment-3 10s infinite ease-in-out;
+}
+
+.luxury-ribbon-segment:nth-child(4) {
+  top: calc(50% - 10px);
+  left: 45%;
+  width: 10%;
+  transform: rotateY(0deg) rotateZ(0deg) translateZ(-5px);
+  animation: ribbon-segment-4 10s infinite ease-in-out;
+}
+
+.luxury-ribbon-segment:nth-child(5) {
+  top: calc(50% - 12px);
+  left: 55%;
+  width: 10%;
+  transform: rotateY(-5deg) rotateZ(2deg) translateZ(0px);
+  animation: ribbon-segment-5 10s infinite ease-in-out;
+}
+
+.luxury-ribbon-segment:nth-child(6) {
+  top: calc(50% - 14px);
+  left: 65%;
+  width: 10%;
+  transform: rotateY(5deg) rotateZ(-2deg) translateZ(5px);
+  animation: ribbon-segment-6 10s infinite ease-in-out;
+}
+
+.luxury-ribbon-segment:nth-child(7) {
+  top: calc(50% - 12px);
+  left: 75%;
+  width: 10%;
+  transform: rotateY(15deg) rotateZ(-5deg) translateZ(10px);
+  animation: ribbon-segment-7 10s infinite ease-in-out;
+}
+
+/* Animated shine effect */
+.luxury-ribbon-shine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: ribbon-shine 2s infinite linear;
+  pointer-events: none;
+  opacity: 0.8;
+  transform: skewX(-20deg);
+  mix-blend-mode: overlay;
+}
+
+/* Add a second shine effect for more dimension */
+.luxury-ribbon-segment:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    45deg,
+    rgba(255, 223, 0, 0) 0%,
+    rgba(255, 223, 0, 0.4) 50%,
+    rgba(255, 223, 0, 0) 100%
+  );
+  animation: ribbon-gold-shine 4s infinite ease-in-out;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+/* Ribbon ends */
+.luxury-ribbon-end {
+  position: absolute;
+  top: 50%;
+  width: 30px;
+  height: 60px;
+  background: rgba(212,175,55,0.9);
+  box-shadow: 0 0 10px rgba(212,175,55,0.8), 0 0 20px rgba(212,175,55,0.4);
+  z-index: 1;
+  transform-style: preserve-3d;
+  /* Realistic silk texture */
+  background-image: 
+    linear-gradient(
+      45deg, 
+      rgba(255,255,255,0.2) 0%, 
+      rgba(255,255,255,0.4) 25%, 
+      rgba(255,255,255,0.2) 50%, 
+      rgba(255,255,255,0.4) 75%, 
+      rgba(255,255,255,0.2) 100%
+    );
+  /* Realistic ribbon edges */
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.luxury-ribbon-end:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(212,175,55,0.8);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 50% 50%);
+  transform: translateZ(1px);
+  border-radius: 0 0 50% 50%;
+}
+
+.luxury-ribbon-end.left {
+  left: 10%;
+  transform: translateX(-50%) rotateZ(-10deg) rotateY(-20deg) rotateX(10deg);
+  animation: ribbon-end-wave-left 8s infinite ease-in-out;
+  border-radius: 40% 60% 60% 40% / 60% 30% 70% 40%;
+}
+
+.luxury-ribbon-end.right {
+  right: 10%;
+  transform: translateX(50%) rotateZ(10deg) rotateY(20deg) rotateX(10deg);
+  animation: ribbon-end-wave-right 8s infinite ease-in-out;
+  border-radius: 60% 40% 40% 60% / 30% 60% 40% 70%;
+}
+
+/* Ribbon decorative elements - more luxurious */
+.luxury-ribbon-decoration {
+  position: absolute;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(212,175,55,1);
+  box-shadow: 0 0 15px rgba(212,175,55,0.8), 0 0 30px rgba(212,175,55,0.4);
+  transform: translateY(-50%) translateZ(15px);
+  animation: ribbon-pulse 4s infinite ease-in-out;
+  z-index: 5;
+  /* Add realistic gem-like effect */
+  background-image: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 70%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.luxury-ribbon-decoration:nth-child(8) {
+  left: 25%;
+  animation: ribbon-pulse 2s infinite ease-in-out;
+}
+
+.luxury-ribbon-decoration:nth-child(9) {
+  left: 50%;
+  animation: ribbon-pulse 2s infinite ease-in-out 0.7s;
+  width: 24px;
+  height: 24px;
+}
+
+.luxury-ribbon-decoration:nth-child(10) {
+  left: 75%;
+  animation: ribbon-pulse 2s infinite ease-in-out 1.4s;
+}
+
+/* Animations */
+@keyframes ribbon-shine {
+  0% {
+    transform: translateX(-200%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(200%) skewX(-20deg);
+  }
+}
+
+@keyframes ribbon-gold-shine {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes ribbon-pulse {
+  0%, 100% {
+    transform: translateY(-50%) scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-50%) scale(1.5);
+    opacity: 1;
+  }
+}
+
+/* Individual segment animations */
+@keyframes ribbon-segment-1 {
+  0%, 100% {
+    transform: rotateY(-15deg) rotateZ(5deg) translateZ(10px);
+  }
+  25% {
+    transform: rotateY(-18deg) rotateZ(7deg) translateZ(12px) translateY(-2px);
+  }
+  50% {
+    transform: rotateY(-12deg) rotateZ(3deg) translateZ(8px) translateY(1px);
+  }
+  75% {
+    transform: rotateY(-16deg) rotateZ(6deg) translateZ(11px) translateY(-1px);
+  }
+}
+
+@keyframes ribbon-segment-2 {
+  0%, 100% {
+    transform: rotateY(-5deg) rotateZ(2deg) translateZ(5px);
+  }
+  30% {
+    transform: rotateY(-8deg) rotateZ(4deg) translateZ(7px) translateY(-1px);
+  }
+  60% {
+    transform: rotateY(-3deg) rotateZ(1deg) translateZ(3px) translateY(2px);
+  }
+  80% {
+    transform: rotateY(-6deg) rotateZ(3deg) translateZ(6px) translateY(0px);
+  }
+}
+
+@keyframes ribbon-segment-3 {
+  0%, 100% {
+    transform: rotateY(5deg) rotateZ(-2deg) translateZ(0px);
+  }
+  20% {
+    transform: rotateY(7deg) rotateZ(-3deg) translateZ(2px) translateY(-2px);
+  }
+  40% {
+    transform: rotateY(3deg) rotateZ(-1deg) translateZ(-2px) translateY(1px);
+  }
+  70% {
+    transform: rotateY(6deg) rotateZ(-2.5deg) translateZ(1px) translateY(-1px);
+  }
+}
+
+@keyframes ribbon-segment-4 {
+  0%, 100% {
+    transform: rotateY(0deg) rotateZ(0deg) translateZ(-5px);
+  }
+  25% {
+    transform: rotateY(2deg) rotateZ(1deg) translateZ(-3px) translateY(-2px);
+  }
+  50% {
+    transform: rotateY(-2deg) rotateZ(-1deg) translateZ(-7px) translateY(2px);
+  }
+  75% {
+    transform: rotateY(1deg) rotateZ(0.5deg) translateZ(-4px) translateY(-1px);
+  }
+}
+
+@keyframes ribbon-segment-5 {
+  0%, 100% {
+    transform: rotateY(-5deg) rotateZ(2deg) translateZ(0px);
+  }
+  30% {
+    transform: rotateY(-7deg) rotateZ(3deg) translateZ(2px) translateY(-1.5px);
+  }
+  55% {
+    transform: rotateY(-3deg) rotateZ(1deg) translateZ(-2px) translateY(2px);
+  }
+  80% {
+    transform: rotateY(-6deg) rotateZ(2.5deg) translateZ(1px) translateY(-0.5px);
+  }
+}
+
+@keyframes ribbon-segment-6 {
+  0%, 100% {
+    transform: rotateY(5deg) rotateZ(-2deg) translateZ(5px);
+  }
+  25% {
+    transform: rotateY(8deg) rotateZ(-3deg) translateZ(7px) translateY(-1px);
+  }
+  50% {
+    transform: rotateY(3deg) rotateZ(-1deg) translateZ(3px) translateY(2px);
+  }
+  75% {
+    transform: rotateY(6deg) rotateZ(-2.5deg) translateZ(6px) translateY(0px);
+  }
+}
+
+@keyframes ribbon-segment-7 {
+  0%, 100% {
+    transform: rotateY(15deg) rotateZ(-5deg) translateZ(10px);
+  }
+  25% {
+    transform: rotateY(18deg) rotateZ(-7deg) translateZ(12px) translateY(-2px);
+  }
+  50% {
+    transform: rotateY(12deg) rotateZ(-3deg) translateZ(8px) translateY(1px);
+  }
+  75% {
+    transform: rotateY(16deg) rotateZ(-6deg) translateZ(11px) translateY(-1px);
+  }
+}
+
+@keyframes ribbon-end-wave-left {
+  0%, 100% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-50%) rotate(-5deg) translateY(-2px);
+  }
+  50% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  75% {
+    transform: translateX(-50%) rotate(5deg) translateY(2px);
+  }
+}
+
+@keyframes ribbon-end-wave-right {
+  0%, 100% {
+    transform: translateX(50%) rotate(0deg);
+  }
+  25% {
+    transform: translateX(50%) rotate(5deg) translateY(-2px);
+  }
+  50% {
+    transform: translateX(50%) rotate(0deg);
+  }
+  75% {
+    transform: translateX(50%) rotate(-5deg) translateY(2px);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .luxury-ribbon-body {
+    left: 10%;
+    right: 10%;
+  }
+  
+  .luxury-ribbon-end.left {
+    left: 10%;
+  }
+  
+  .luxury-ribbon-end.right {
+    right: 10%;
+  }
+}

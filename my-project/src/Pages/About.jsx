@@ -50,45 +50,49 @@ export default function About() {
           <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-64 h-64 bg-gold/5 rounded-full opacity-30 blur-3xl" />
         </div>
 
-        {/* Our Story */}
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16"
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-        >
-          <motion.div variants={itemVariants}>
-            <h2 
-              className="text-3xl font-bold mb-6 text-gold"
-              style={{ fontFamily: luxuryTheme.typography.fontFamily.heading }}
-            >
-              Our Story
-            </h2>
-            <div className="space-y-4 text-gray-300" style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}>
-              <p>
-                GiftNest was founded in 2020 with a simple mission: to help people find the perfect gifts for their loved ones. We believe that gift-giving is an art, and we're here to make it easier and more meaningful.
-              </p>
-              <p>
-                What started as a small online store has grown into a curated marketplace of unique, thoughtful gifts for every occasion. We work with artisans, designers, and brands who share our passion for quality and craftsmanship.
-              </p>
-              <p>
-                Every gift in our collection is carefully selected to ensure it meets our standards of quality, uniqueness, and thoughtfulness. We believe that the best gifts are those that show you truly understand and appreciate the recipient.
-              </p>
-            </div>
-          </motion.div>
-          <motion.div variants={itemVariants} className="relative">
-            <div className="absolute inset-0 border border-gold/30 transform rotate-3 scale-105" />
-            <img 
-              src="/assets/about-story.jpg" 
-              alt="Our team selecting gifts" 
-              className="relative z-10 w-full h-full object-cover border border-gold/20"
-              onError={(e) => {
-                e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400' preserveAspectRatio='none'%3E%3Cg%3E%3Ctext style='font-family:Arial;font-size:24px;font-weight:bold;dominant-baseline:middle;text-anchor:middle;fill:rgba(100,100,100,0.8)' x='50%25' y='50%25'%3EOur Story%3C/text%3E%3C/g%3E%3C/svg%3E";
-              }}
-            />
-          </motion.div>
-        </motion.div>
+       {/* Our Story */}
+<motion.div 
+  className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16"
+  variants={containerVariants}
+  initial="hidden"
+  whileInView="visible"
+  viewport={{ once: true, amount: 0.2 }}
+>
+  {/* Left Side - Text */}
+  <motion.div variants={itemVariants}>
+    <h2 
+      className="text-3xl font-bold mb-6 text-gold"
+      style={{ fontFamily: luxuryTheme.typography.fontFamily.heading }}
+    >
+      Our Story
+    </h2>
+    <div className="space-y-4 text-gray-300" style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}>
+      <p>
+        GiftNest was founded in 2020 with a simple mission: to help people find the perfect gifts for their loved ones. We believe that gift-giving is an art, and we're here to make it easier and more meaningful.
+      </p>
+      <p>
+        What started as a small online store has grown into a curated marketplace of unique, thoughtful gifts for every occasion. We work with artisans, designers, and brands who share our passion for quality and craftsmanship.
+      </p>
+      <p>
+        Every gift in our collection is carefully selected to ensure it meets our standards of quality, uniqueness, and thoughtfulness. We believe that the best gifts are those that show you truly understand and appreciate the recipient.
+      </p>
+    </div>
+  </motion.div>
+
+  {/* Right Side - Image */}
+  <motion.div variants={itemVariants} className="relative aspect-square w-full max-w-md mx-auto">
+    <div className="absolute inset-0 border border-gold/30 transform rotate-3 scale-105 rounded-xl" />
+    <img 
+      src="/assets/our story.png" 
+      alt="Our team selecting gifts" 
+      className="relative z-10 w-full h-full object-cover border border-gold/20 rounded-xl"
+      onError={(e) => {
+        e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400' preserveAspectRatio='none'%3E%3Cg%3E%3Ctext style='font-family:Arial;font-size:24px;font-weight:bold;dominant-baseline:middle;text-anchor:middle;fill:rgba(100,100,100,0.8)' x='50%25' y='50%25'%3EOur Story%3C/text%3E%3C/g%3E%3C/svg%3E";
+      }}
+    />
+  </motion.div>
+</motion.div>
+
 
         {/* Our Values */}
         <motion.div 
@@ -176,61 +180,62 @@ export default function About() {
         </motion.div>
 
         {/* Team Section */}
-        <motion.div 
-          className="mb-16"
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-        >
-          <motion.h2 
-            className="text-3xl font-bold mb-8 text-center text-gold"
-            variants={itemVariants}
+<motion.div 
+  className="mb-16"
+  variants={containerVariants}
+  initial="hidden"
+  whileInView="visible"
+  viewport={{ once: true, amount: 0.2 }}
+>
+  <motion.h2 
+    className="text-3xl font-bold mb-8 text-center text-gold"
+    variants={itemVariants}
+    style={{ fontFamily: luxuryTheme.typography.fontFamily.heading }}
+  >
+    Meet Our Team
+  </motion.h2>
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+    {[
+      { name: "Kanchi saw", title: "Founder & CEO", image: "/assets/50 Times Makeup Artists Pushed The Boundaries Of Creativity.jpg" },
+      { name: "Aditi choubey", title: "Creative Director", image: "/assets/download (12).jpg" },
+      { name: "Rohit bouri", title: "Api tester", image: "/assets/Leonardo.jpg" },
+      { name: "Rohit sharma", title: "Analyst and report writer", image: "/assets/download (13).jpg" }
+    ].map((member, index) => (
+      <motion.div 
+        key={index}
+        className="bg-gray-900/50 border border-gold/10 overflow-hidden"
+        variants={itemVariants}
+      >
+        <div className="aspect-square bg-gray-800 relative">
+          <div className="absolute inset-0 border border-gold/20"></div>
+          <img 
+            src={member.image} 
+            alt={member.name} 
+            className="w-full h-full object-cover object-top"  // aligned image from top
+            onError={(e) => {
+              e.target.src = `data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300' preserveAspectRatio='none'%3E%3Cg%3E%3Ctext style='font-family:Arial;font-size:16px;font-weight:bold;dominant-baseline:middle;text-anchor:middle;fill:rgba(100,100,100,0.8)' x='50%25' y='50%25'%3E${member.name}%3C/text%3E%3C/g%3E%3C/svg%3E`;
+            }}
+          />
+        </div>
+        <div className="p-4 text-center">
+          <h3 
+            className="text-lg font-semibold mb-1 text-white"
             style={{ fontFamily: luxuryTheme.typography.fontFamily.heading }}
           >
-            Meet Our Team
-          </motion.h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              { name: "Sarah Johnson", title: "Founder & CEO", image: "/assets/team-1.jpg" },
-              { name: "Michael Chen", title: "Creative Director", image: "/assets/team-2.jpg" },
-              { name: "Emily Rodriguez", title: "Gift Curator", image: "/assets/team-3.jpg" },
-              { name: "David Kim", title: "Customer Experience", image: "/assets/team-4.jpg" }
-            ].map((member, index) => (
-              <motion.div 
-                key={index}
-                className="bg-gray-900/50 border border-gold/10 overflow-hidden"
-                variants={itemVariants}
-              >
-                <div className="aspect-square bg-gray-800 relative">
-                  <div className="absolute inset-0 border border-gold/20"></div>
-                  <img 
-                    src={member.image} 
-                    alt={member.name} 
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src = `data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300' preserveAspectRatio='none'%3E%3Cg%3E%3Ctext style='font-family:Arial;font-size:16px;font-weight:bold;dominant-baseline:middle;text-anchor:middle;fill:rgba(100,100,100,0.8)' x='50%25' y='50%25'%3E${member.name}%3C/text%3E%3C/g%3E%3C/svg%3E`;
-                    }}
-                  />
-                </div>
-                <div className="p-4 text-center">
-                  <h3 
-                    className="text-lg font-semibold mb-1 text-white"
-                    style={{ fontFamily: luxuryTheme.typography.fontFamily.heading }}
-                  >
-                    {member.name}
-                  </h3>
-                  <p 
-                    className="text-gray-400"
-                    style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
-                  >
-                    {member.title}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
+            {member.name}
+          </h3>
+          <p 
+            className="text-gray-400"
+            style={{ fontFamily: luxuryTheme.typography.fontFamily.body }}
+          >
+            {member.title}
+          </p>
+        </div>
+      </motion.div>
+    ))}
+  </div>
+</motion.div>
+
 
         {/* CTA Section */}
         <motion.div 
